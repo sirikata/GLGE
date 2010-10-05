@@ -5623,6 +5623,7 @@ GLGE.Renderer.prototype.setScene=function(scene){
 * Renders the current scene to the canvas
 */
 GLGE.Renderer.prototype.render=function(){
+    if (!this.scene) return;
 	this.scene.render(this.gl);
 	//if this is the first ever pass then render twice to fill shadow buffers
 	if(!this.rendered){
