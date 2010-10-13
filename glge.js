@@ -3786,10 +3786,10 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 	if(!program.caches.mvMatrix) program.caches.mvMatrix={cameraMatrix:null,modelMatrix:null};
 	var mvCache=program.caches.mvMatrix;
 	
-	if(mvCache.camerMatrix!=cameraMatrix || mvCache.modelMatrix!=modelMatrix){
+	if(true || mvCache.camerMatrix!=cameraMatrix || mvCache.modelMatrix!=modelMatrix){
 		try{
 		//generate and set the modelView matrix
-		if(!this.caches.mvMatrix) this.caches.mvMatrix=GLGE.mulMat4(cameraMatrix,modelMatrix);
+		if(true||!this.caches.mvMatrix) this.caches.mvMatrix=GLGE.mulMat4(cameraMatrix,modelMatrix);
 		mvMatrix=this.caches.mvMatrix;
 					
 		var mvUniform = GLGE.getUniformLocation(gl,program, "worldView");
@@ -3803,7 +3803,7 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 
 	    
 		//invCamera matrix
-		if(!this.caches.envMat){
+		if(true||!this.caches.envMat){
 			var envMat = GLGE.inverseMat4(mvMatrix);
 			envMat[3]=0;
 			envMat[7]=0;
@@ -3846,7 +3846,9 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 		
 		mvCache.camerMatrix=cameraMatrix;
 		mvCache.modelMatrix=modelMatrix;
-		}catch(e){}
+		}catch(e){
+            GLGE.error("Serious error in setting of camera cache"+ e);
+        }
 	}
 	
 	try{
