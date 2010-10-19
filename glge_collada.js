@@ -135,8 +135,9 @@ GLGE.Collada.prototype.parseArray=function(node){
 * @param {DOM Element} node the value to parse
 * @param {string} relativeTo optional the path the url is relative to
 */
-GLGE.Collada.prototype.setDocument=function(url,relativeTo){
+GLGE.Collada.prototype.setDocument=function(url,relativeTo,cb){
 	this.url=url;
+    this.loadedCallback=cb;
 	//use # to determine the is of the asset to extract
 	if(url.indexOf("#")!=-1){
 		this.rootId=url.substr(url.indexOf("#")+1);
@@ -1386,6 +1387,9 @@ GLGE.Collada.prototype.loaded=function(url,xml){
 	this.xml=xml;
 	this.initVisualScene();
 	this.getAnimations();
+    if (this.loadedCallback) {
+        this.loadedCallback(this);
+    }
 };
 
 GLGE.Scene.prototype.addCollada=GLGE.Scene.prototype.addGroup;
