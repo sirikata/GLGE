@@ -1388,19 +1388,29 @@ GLGE.Collada.prototype.initVisualScene=function(){
 * @param {DOM Document} xml the xml document
 * @private
 */
-GLGE.Collada.prototype.loaded=function(url,xml){
+GLGE.Collada.prototype.loaded = function(url, xml){
     try {
         this.exceptions = exceptions[xml.getElementsByTagName("authoring_tool")[0].firstChild.nodeValue];
-        if(!this.exceptions) this.exceptions=exceptions.default;
-        this.xml = xml;
-        this.initVisualScene();
-        this.getAnimations();
-        if (this.loadedCallback) {
-            this.loadedCallback(this);
-        }
     } 
     catch (ex) {
-        GLGE.error("Error parsing Collada document: " + url);
+        GLGE.error("Collada error, authoring_tool: " + url);
+    }
+    if(!this.exceptions) this.exceptions=exceptions.default;
+    this.xml = xml;
+    try {
+        this.initVisualScene();
+    } 
+    catch (ex) {
+        GLGE.error("Collada error, initVisualScene: " + url);
+    }
+    try {
+        this.getAnimations();
+    } 
+    catch (ex) {
+        GLGE.error("Collada error, getAnimations: " + url);
+    }
+    if (this.loadedCallback) {
+        this.loadedCallback(this);
     }
 };
 
