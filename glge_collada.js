@@ -1382,13 +1382,18 @@ GLGE.Collada.prototype.initVisualScene=function(){
 * @private
 */
 GLGE.Collada.prototype.loaded=function(url,xml){
-	this.exceptions=exceptions[xml.getElementsByTagName("authoring_tool")[0].firstChild.nodeValue];
-	if(!this.exceptions) this.exceptions=exceptions.default;
-	this.xml=xml;
-	this.initVisualScene();
-	this.getAnimations();
-    if (this.loadedCallback) {
-        this.loadedCallback(this);
+    try {
+        this.exceptions = exceptions[xml.getElementsByTagName("authoring_tool")[0].firstChild.nodeValue];
+        if(!this.exceptions) this.exceptions=exceptions.default;
+        this.xml = xml;
+        this.initVisualScene();
+        this.getAnimations();
+        if (this.loadedCallback) {
+            this.loadedCallback(this);
+        }
+    } 
+    catch (ex) {
+        GLGE.error("Error parsing Collada document: " + url);
     }
 };
 
