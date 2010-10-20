@@ -225,7 +225,14 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 	var block;
 	var set;
 	var rootNode=this.xml.getElementById(id);
-	var meshNode=rootNode.getElementsByTagName("mesh")[0];
+    var temp = rootNode.getElementsByTagName("mesh");
+    meshNode = null;
+    if (temp.length) {
+        meshNode = temp[0];
+    }
+    else {
+        return [];
+    }
 	var meshes=[];
 	
 	
