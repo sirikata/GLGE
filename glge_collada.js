@@ -231,6 +231,7 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
         meshNode = temp[0];
     }
     else {
+        GLGE.error("Collada.getMeshes returning [], id: " + id);
         return [];
     }
 	var meshes=[];
