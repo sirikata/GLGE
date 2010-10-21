@@ -32,10 +32,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * @author me@paulbrunt.co.uk
  */
  
-if(!GLGE){
-	var GLGE={};
+if(typeof(GLGE) == "undefined"){
+	/**
+	* @namespace Holds the functionality of the library
+	*/
+	GLGE = {};
 }
- 
+
 (function(GLGE){
  GLGE.ColladaDocuments=[];
  
@@ -1383,7 +1386,7 @@ GLGE.Collada.prototype.initVisualScene=function(){
 */
 GLGE.Collada.prototype.loaded=function(url,xml){
 	this.exceptions=exceptions[xml.getElementsByTagName("authoring_tool")[0].firstChild.nodeValue];
-	if(!this.exceptions) this.exceptions=exceptions.default;
+	if(!this.exceptions) this.exceptions=exceptions["default"];
 	this.xml=xml;
 	this.initVisualScene();
 	this.getAnimations();
