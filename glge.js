@@ -335,8 +335,12 @@ GLGE.getGLShader=function(gl,type,str){
 		gl.shaderSource(shader, str);
 		gl.compileShader(shader);
 		if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-		      alert(gl.getShaderInfoLog(shader));
-		      return;
+			try {
+				alert(gl.getShaderInfoLog(shader));
+				return;
+			} catch (e) {
+				/* Firefox hack: Assume no error if there was no shader log. */
+			}
 		}
 		gl.shaderCache[hash]=shader;
 	}
