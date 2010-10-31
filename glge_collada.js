@@ -1476,7 +1476,7 @@ GLGE.Collada.prototype.loaded = function(url, xml){
     catch (ex) {
         GLGE.error("Collada error, authoring_tool: " + url);
     }
-    if(!this.exceptions) this.exceptions=exceptions.default;
+    if(!this.exceptions) this.exceptions=exceptions["default"];
     this.xml = xml;
     try {
         this.initVisualScene();
