@@ -5184,7 +5184,7 @@ GLGE.Scene.prototype.getFogFar=function(){
 * @param {number} dist The fog far distance
 */
 GLGE.Scene.prototype.setFogFar=function(dist){	
-	this.fogFar=dist;
+	this.fogFar=parseFloat(dist);
 	return this;
 }
 
@@ -5200,7 +5200,7 @@ GLGE.Scene.prototype.getFogNear=function(){
 * @param {number} dist The fog near distance
 */
 GLGE.Scene.prototype.setFogNear=function(dist){	
-	this.fogNear=dist;
+	this.fogNear=parseFloat(dist);
 	return this;
 }
 
