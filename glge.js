@@ -7746,7 +7746,6 @@ GLGE.Material.prototype.getFragmentShader=function(lights){
 			shader=shader+"al = al*(1.0-mask) + texture"+sampletype+"(TEXTURE"+this.layers[i].texture.idx+", textureCoords."+txcoord+").a*mask;\n";
 		}
 	}		
-<<<<<<< HEAD:glge.js
     if (!anyAlpha && this.layers.length) {
 		if(this.layers[diffuseLayer].getTexture().className=="Texture" || this.layers[diffuseLayer].getTexture().className=="TextureCanvas"  || this.layers[diffuseLayer].getTexture().className=="TextureVideo" ) {
 			var txcoord="xy";
@@ -7759,9 +7758,7 @@ GLGE.Material.prototype.getFragmentShader=function(lights){
 		shader=shader+"al = al*(1.0-mask) + texture"+sampletype+"(TEXTURE"+this.layers[diffuseLayer].texture.idx+", textureCoords."+txcoord+").a*mask;\n";
         
     }
-=======
 	shader=shader+"if(al<0.1) discard;\n";
->>>>>>> 25744df882e439a6b41b858e2d9b3b36c39233e8:glge.js
 	if(tangent){
 		shader=shader+"vec3 normal = normalize(normalmap.rgb)*2.0-1.0;\n";
 	}else{

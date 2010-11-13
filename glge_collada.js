@@ -1500,7 +1500,6 @@ GLGE.Collada.prototype.initVisualScene=function(){
 * @param {DOM Document} xml the xml document
 * @private
 */
-<<<<<<< HEAD:glge_collada.js
 GLGE.Collada.prototype.loaded = function(url, xml){
     try {
         if(xml.getElementsByTagName("authoring_tool").length>0)
@@ -1526,15 +1525,7 @@ GLGE.Collada.prototype.loaded = function(url, xml){
     if (this.loadedCallback) {
         this.loadedCallback(this);
     }
-=======
-GLGE.Collada.prototype.loaded=function(url,xml){
-	if(xml.getElementsByTagName("authoring_tool").length>0) this.exceptions=exceptions[xml.getElementsByTagName("authoring_tool")[0].firstChild.nodeValue];
-	if(!this.exceptions) this.exceptions=exceptions.default;
-	this.xml=xml;
-	this.initVisualScene();
-	this.getAnimations();
 	this.fireEvent("loaded",{url:this.url});
->>>>>>> 25744df882e439a6b41b858e2d9b3b36c39233e8:glge_collada.js
 };
 
 GLGE.Scene.prototype.addCollada=GLGE.Scene.prototype.addGroup;
