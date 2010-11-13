@@ -4079,7 +4079,12 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 			if(typeof this.mesh.joints[i]=="string"){
 				if(!this.bones) this.bones=this.skeleton.getNames();
 				if(this.bones){
-					var modelMatrix=this.bones[this.mesh.joints[i]].getModelMatrix();
+                    try {
+                        var modelMatrix = this.bones[this.mesh.joints[i]].getModelMatrix();
+                    }
+                    catch (e) {
+                        GLGE.error("skeleton/joints problem")
+                    }
 				}
 			}else{
 				var modelMatrix=this.mesh.joints[i].getModelMatrix();
