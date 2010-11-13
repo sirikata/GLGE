@@ -1798,7 +1798,7 @@ GLGE.Animatable.prototype.animation=null;
 GLGE.Animatable.prototype.blendStart=0;
 GLGE.Animatable.prototype.blendTime=0;
 GLGE.Animatable.prototype.lastFrame=null;
-GLGE.Animatable.prototype.frameRate=25;
+GLGE.Animatable.prototype.frameRate=30;
 GLGE.Animatable.prototype.loop=GLGE.TRUE;
 GLGE.Animatable.prototype.paused=GLGE.FALSE;
 GLGE.Animatable.prototype.pausedTime=null;
@@ -1865,15 +1865,17 @@ GLGE.Animatable.prototype.getName=function(){
 * @param {number} now the current time
 */
  GLGE.Animatable.prototype.getFrameNumber=function(now){
+	if(!this.startFrame) this.startFrame=this.animation.startFrame;
+	if(!this.animFrames) this.animFrames=this.animation.frames;
 	var frame;
 	if(!now) now=parseInt(new Date().getTime());
-	if(this.animation.frames>1){
+	if(this.animFrames>1){
 		if(this.loop){
-			frame=((parseFloat(now)-parseFloat(this.animationStart))/1000*this.frameRate)%(this.animation.frames-1)+1; 
+			frame=((parseFloat(now)-parseFloat(this.animationStart))/1000*this.frameRate)%(this.animFrames-1)+1+this.startFrame; 
 		}else{
-			frame=((parseFloat(now)-parseFloat(this.animationStart))/1000*this.frameRate)+1; 
-			if(frame>=this.animation.frames){
-				frame=this.animation.frames;
+			frame=((parseFloat(now)-parseFloat(this.animationStart))/1000*this.frameRate)+1+this.startFrame; 
+			if(frame>=this.animFrames){
+				frame=this.animFrames;
 			}
 		}
 	}else{
@@ -1882,6 +1884,50 @@ GLGE.Animatable.prototype.getName=function(){
 
 	return Math.round(frame);
 }
+ 
+/**
+* Sets the start frame for the animation overriding the animation default
+* @param {number} startFrame the start frame
+*/
+ GLGE.Animatable.prototype.setStartFrame=function(startFrame,blendTime,loop){
+	this.loop=loop;
+	var starttime=parseInt(new Date().getTime());
+	if(!blendTime) blendTime=0;
+	if(blendTime>0){
+		if(this.animation){
+			this.blendInitValues=this.getInitialValues(this.animation,starttime);
+			this.blendTime=blendTime;
+		}
+	}
+	this.animationStart=starttime;
+	this.lastFrame=null;
+	this.animFinished=false;
+	this.startFrame=startFrame;
+	if(this.children){
+		for(var i=0;i<this.children.length;i++){
+			if(this.children[i].setStartFrame){
+				this.children[i].setStartFrame(startFrame,blendTime,loop);
+			}
+		}
+	}
+	return this;
+ }
+ /**
+* Sets the number of frames to play overriding the animation default
+* @param {number} frames the number of frames
+* @private
+*/
+ GLGE.Animatable.prototype.setFrames=function(frames){
+	this.animFrames=frames;
+	if(this.children){
+		for(var i=0;i<this.children.length;i++){
+			if(this.children[i].setFrames){
+				this.children[i].setFrames(frames);
+			}
+		}
+	}
+	return this;l
+ }
  
  /**
 * gets the initial values for the animation vector for blending
@@ -2021,6 +2067,8 @@ GLGE.Animatable.prototype.setAnimation=function(animationVector,blendDuration,st
 		this.blendInitValues=this.getInitialValues(animationVector,starttime);
 		this.blendTime=blendDuration;
 	}
+	this.animFrames=null;
+	this.startFrame=null;
 	this.animationStart=starttime;
 	this.lastFrame=null;
 	this.animation=animationVector;
@@ -2430,6 +2478,7 @@ GLGE.augment(GLGE.QuickNotation,GLGE.AnimationVector);
 GLGE.augment(GLGE.JSONLoader,GLGE.AnimationVector);
 GLGE.AnimationVector.prototype.curves=[];
 GLGE.AnimationVector.prototype.frames=250;
+GLGE.AnimationVector.prototype.startFrame=0;
 
 /**
 * Adds an Animation Curve to a channel 
@@ -2463,6 +2512,21 @@ GLGE.AnimationVector.prototype.getFrames=function(){
 	return this.frames;
 }
 
+/**
+* Sets the start frame
+* @param {number} value The starting frame for the animation
+*/
+GLGE.AnimationVector.prototype.setStartFrame=function(value){
+	this.startFrame=value;
+	return this;
+}
+/**
+* Gets the start fames
+* @returns {number} The starting frame for the animation
+*/
+GLGE.AnimationVector.prototype.getStartFrame=function(){
+	return this.startFrame;
+}
 
 /**
 * @constant 
@@ -2746,6 +2810,28 @@ GLGE.Action.prototype.start=function(blendTime,loop,names){
 
 	}
 };
+/**
+* Sets the start frame for all animations
+* @param {number} startFrame the starting frame for the animation
+*/
+GLGE.Action.prototype.setStartFrame=function(startFrame){
+	for(var i=0;i<this.channels.length;i++){
+		this.channels[i].getAnimation().setStartFrame(startFrame);
+	}
+	return this;
+};
+/**
+* Sets the number of frames to play
+* @param {number} frame the number of frames to play
+*/
+GLGE.Action.prototype.setFrames=function(frames){
+	for(var i=0;i<this.channels.length;i++){
+		this.channels[i].getAnimation().setFrames(frames);
+	}
+	return this;
+};
+
+
 /**
 * Adds and action channel to this action
 * @param {GLGE.ActionChannel} channel the channel to be added
@@ -3462,7 +3548,7 @@ GLGE.Object.prototype.getSkeleton=function(){
 */
 GLGE.Object.prototype.setSkeleton=function(value){
 	this.skeleton=value;
-	this.bones=value.getNames();
+	this.bones=null;
 	return this;
 }
 
@@ -3991,6 +4077,7 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 			for(i=0;i<this.mesh.joints.length;i++){
 			if(!jointCache[i]) jointCache[i]={modelMatrix:null,invBind:null};
 			if(typeof this.mesh.joints[i]=="string"){
+				if(!this.bones) this.bones=this.skeleton.getNames();
 				if(this.bones){
 					var modelMatrix=this.bones[this.mesh.joints[i]].getModelMatrix();
 				}
@@ -4160,6 +4247,7 @@ GLGE.Object.prototype.GLRender=function(gl,renderType,pickindex){
 			var caches=this.caches;
 			for(var n=0;n<this.instances.length;n++){
 				this.matrix=this.instances[n].getModelMatrix();
+				if(this.skeleton) this.skeleton.setStaticMatrix(this.matrix);
 				this.caches=this.instances[n].caches;
 				this.GLUniforms(gl,renderType,pickindex);
 				if(this.mesh.GLfaces){
@@ -4282,7 +4370,7 @@ GLGE.Mesh.prototype.setVertexJoints=function(jsArray,num){
 			}
 		}
 		this.setBuffer("joints1",jsArray1,4);
-		this.setBuffer("joints2",jsArray2,4-num%4);
+		this.setBuffer("joints2",jsArray2,(num-1)%4);
 	}
 	this.fireEvent("shaderupdate",{});
 	return this;
@@ -4320,7 +4408,7 @@ GLGE.Mesh.prototype.setVertexWeights=function(jsArray,num){
 			}
 		}
 		this.setBuffer("weights1",jsArray1,4);
-		this.setBuffer("weights2",jsArray2,4-num%4);
+		this.setBuffer("weights2",jsArray2,(num-1)%4);
 	}
 	this.fireEvent("shaderupdate",{});
 	return this;
@@ -7658,6 +7746,7 @@ GLGE.Material.prototype.getFragmentShader=function(lights){
 			shader=shader+"al = al*(1.0-mask) + texture"+sampletype+"(TEXTURE"+this.layers[i].texture.idx+", textureCoords."+txcoord+").a*mask;\n";
 		}
 	}		
+<<<<<<< HEAD:glge.js
     if (!anyAlpha && this.layers.length) {
 		if(this.layers[diffuseLayer].getTexture().className=="Texture" || this.layers[diffuseLayer].getTexture().className=="TextureCanvas"  || this.layers[diffuseLayer].getTexture().className=="TextureVideo" ) {
 			var txcoord="xy";
@@ -7670,6 +7759,9 @@ GLGE.Material.prototype.getFragmentShader=function(lights){
 		shader=shader+"al = al*(1.0-mask) + texture"+sampletype+"(TEXTURE"+this.layers[diffuseLayer].texture.idx+", textureCoords."+txcoord+").a*mask;\n";
         
     }
+=======
+	shader=shader+"if(al<0.1) discard;\n";
+>>>>>>> 25744df882e439a6b41b858e2d9b3b36c39233e8:glge.js
 	if(tangent){
 		shader=shader+"vec3 normal = normalize(normalmap.rgb)*2.0-1.0;\n";
 	}else{
