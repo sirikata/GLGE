@@ -4375,7 +4375,7 @@ GLGE.Mesh.prototype.setVertexJoints=function(jsArray,num){
 			}
 		}
 		this.setBuffer("joints1",jsArray1,4);
-		this.setBuffer("joints2",jsArray2,(num-1)%4);
+		this.setBuffer("joints2",jsArray2,num-4);
 	}
 	this.fireEvent("shaderupdate",{});
 	return this;
@@ -4413,7 +4413,7 @@ GLGE.Mesh.prototype.setVertexWeights=function(jsArray,num){
 			}
 		}
 		this.setBuffer("weights1",jsArray1,4);
-		this.setBuffer("weights2",jsArray2,(num-1)%4);
+		this.setBuffer("weights2",jsArray2,num-4);
 	}
 	this.fireEvent("shaderupdate",{});
 	return this;
@@ -7442,6 +7442,7 @@ GLGE.Material.prototype.getSpecular=function(){
 * @param {Number} value how much shine
 */
 GLGE.Material.prototype.setShininess=function(value){
+	if (value<=0) value=0.001;
 	this.shine=value;
 	this.fireEvent("shaderupdate",{});
 	return this;

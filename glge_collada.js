@@ -59,7 +59,6 @@ GLGE.Collada=function(){
 	this.children=[];
 	this.actions={};
 	this.boneIdx=0;
-	this.meshIdx=0;
 	this.actionsIdx=0;
 };
 GLGE.augment(GLGE.Group,GLGE.Collada);
@@ -227,9 +226,8 @@ var meshCache={};
 * @private
 */
 GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
-	this.meshIdx++;
 	if(!meshCache[this.url]) meshCache[this.url]=[];
-	if(meshCache[this.url][this.meshIdx]) return meshCache[this.url][this.meshIdx];
+	if(meshCache[this.url][id]) return meshCache[this.url][id];
 	
 	var i,n;
 	var mesh;
@@ -407,7 +405,6 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 		if(outputData.TEXCOORD0) trimesh.setUV(outputData.TEXCOORD0);
 		if(!outputData.TEXCOORD0 && outputData.TEXCOORD1) trimesh.setUV(outputData.TEXCOORD1);
 		if(outputData.TEXCOORD1) trimesh.setUV2(outputData.TEXCOORD1);
-
 		if(skeletonData){
 			if(skeletonData.count>8){
 				var newjoints=[];
@@ -438,7 +435,7 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 
 		meshes.push(trimesh);
 	}
-	meshCache[this.url][this.meshIdx]=meshes;
+	meshCache[this.url][id]=meshes;
 	return meshes;
 };
 
@@ -564,12 +561,19 @@ function getChildElementById( dNode, id ) {
 	return dResult;
 }
 
+var MaterialCache={};
+
 /**
 * Gets the sampler for a texture
 * @param {string} id the id or the material element
 * @private
 */
 GLGE.Collada.prototype.getMaterial=function(id){	
+	if(!MaterialCache[this.url]) MaterialCache[this.url]={};
+	if(MaterialCache[this.url][id]){
+		return MaterialCache[this.url][id];
+	}
+	
     	var materialLib=this.xml.getElementsByTagName("library_materials")[0];
 	var materialNode=getChildElementById(materialLib, id); //this.xml.getElementById(id);
 	var effectid=materialNode.getElementsByTagName("instance_effect")[0].getAttribute("url").substr(1);
@@ -577,9 +581,10 @@ GLGE.Collada.prototype.getMaterial=function(id){
 	var common=effect.getElementsByTagName("profile_COMMON")[0];
 	//glge only supports one technique currently so try and match as best we can
 	var technique=common.getElementsByTagName("technique")[0];
-	
 	var returnMaterial=new GLGE.Material();
 	returnMaterial.setSpecular(0);
+	
+	MaterialCache[this.url][id]=returnMaterial;
 	
 	var child;
 	var color;
@@ -917,6 +922,11 @@ GLGE.Collada.prototype.getAnimationSampler=function(id){
 	for(var i=0;i<outputData["INPUT"].data.length;i++){
 		for(var j=0;j<outputData["OUTPUT"].stride;j++){
 			anim[j].name=outputData["OUTPUT"].names[j];
+			//fix if type is bezier and no tangent the fallback to linear
+			if(outputData["INTERPOLATION"].data[i]=="BEZIER" && !outputData["IN_TANGENT"]){
+				outputData["INTERPOLATION"].data[i]="LINEAR"
+			}
+			
 			if(outputData["INTERPOLATION"].data[i]=="LINEAR"){
 				point=new GLGE.LinearPoint();
 				point.setX(outputData["INPUT"].data[i]*frameRate);
@@ -1258,7 +1268,7 @@ GLGE.Collada.prototype.getInstanceController=function(node){
 	}
 
 	var inverseBindMatrix=[bindShapeMatrix];
-	var joints=[new GLGE.Group()];
+	var joints=[new GLGE.Group];
 	var mat;
 	for(var i=0; i<inputs.length;i++){
 		//TODO: sort out correct use of accessors for these source
@@ -1418,7 +1428,7 @@ GLGE.Collada.prototype.getNode=function(node,ref){
 	}
 	
 	var newGroup=new GLGE.Group();
-	var name="bone"+(++this.boneIdx)
+	var name="bone"+(++this.boneIdx);
 	newGroup.setName(name);
 	
 	if(!node.GLGEObjects) node.GLGEObjects=[];
