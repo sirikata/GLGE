@@ -1535,14 +1535,17 @@ GLGE.Collada.prototype.getExceptions=function(){
 * @param {DOM Document} xml the xml document
 * @private
 */
-/// FIXME -- I used to have some try/catches going on here to avoid silent fails
 GLGE.Collada.prototype.loaded=function(url,xml){
 	this.xml=xml;
 	if(xml.getElementsByTagName("authoring_tool").length>0) this.exceptions=exceptions[xml.getElementsByTagName("authoring_tool")[0].firstChild.nodeValue];
 	this.exceptions=this.getExceptions();
 	if(!this.exceptions) this.exceptions=exceptions.default;
+/// FIXME -- I used to have some try/catches going on here to avoid silent fails
 	this.initVisualScene();
 	this.getAnimations();
+    if (this.loadedCallback) {
+        this.loadedCallback(this);
+    }
 	this.fireEvent("loaded",{url:this.url});
 };
 
