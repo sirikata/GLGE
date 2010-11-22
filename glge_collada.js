@@ -42,13 +42,7 @@ if(typeof(GLGE) == "undefined"){
 (function(GLGE){
  GLGE.ColladaDocuments=[];
  
-/**
-* Exceptions for the bad exports out there, I'm sure there will be many more :-(
-*/
-var exceptions={
-	"default":{},
-	"COLLADA Mixamo exporter":{badAccessor:true}
-}
+
  
  
 /**
@@ -424,6 +418,7 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 				vertexWeights=newweights;
 				skeletonData.count=8;
 			}
+			
 			trimesh.setJoints(skeletonData.joints);
 			trimesh.setInvBindMatrix(skeletonData.inverseBindMatrix);
 			trimesh.setVertexJoints(vertexJoints,skeletonData.count);
@@ -838,7 +833,7 @@ GLGE.Collada.prototype.getMaterialAlpha=function(color,opaque,transparency){
 * @private
 */
 GLGE.Collada.prototype.getInstanceGeometry=function(node){
-	if(node.GLGEObj){
+	if(node.GLGEObj && false){
 		var obj=new GLGE.ObjectInstance();
 		obj.setObject(node.GLGEObj);
 		return obj;
@@ -931,6 +926,15 @@ GLGE.Collada.prototype.getAnimationSampler=function(id){
 				point=new GLGE.LinearPoint();
 				point.setX(outputData["INPUT"].data[i]*frameRate);
 				point.setY(outputData["OUTPUT"].data[i*outputData["OUTPUT"].stride+j]);
+				var val=outputData["OUTPUT"].data[i*outputData["OUTPUT"].stride+j];
+				if(this.exceptions["flipangle"]){
+					if(i>0 && i<outputData["INPUT"].data.length-1){
+						var lastval=outputData["OUTPUT"].data[(i-1)*outputData["OUTPUT"].stride+j];
+						if(Math.abs(lastval-180-val)<Math.abs(lastval-val)){
+							point.setY(360+parseFloat(outputData["OUTPUT"].data[i*outputData["OUTPUT"].stride+j]));
+						}
+					}
+				}
 				anim[j].addPoint(point);
 			}
 			
@@ -1268,7 +1272,9 @@ GLGE.Collada.prototype.getInstanceController=function(node){
 	}
 
 	var inverseBindMatrix=[bindShapeMatrix];
-	var joints=[new GLGE.Group];
+	var base=new GLGE.Group;
+	this.addGroup(base);
+	var joints=[base];
 	var mat;
 	for(var i=0; i<inputs.length;i++){
 		//TODO: sort out correct use of accessors for these source
@@ -1504,37 +1510,39 @@ GLGE.Collada.prototype.initVisualScene=function(){
 		}
 	}
 };
+
+
+/**
+* Exceptions for the bad exports out there, I'm sure there will be many more :-(
+*/
+var exceptions={
+	"default":{},
+	"COLLADA Mixamo exporter":{badAccessor:true},
+	"Blender2.5":{flipangle:true}
+}
+	
+GLGE.Collada.prototype.getExceptions=function(){
+	if(this.xml.getElementsByTagName("authoring_tool").length>0 && this.xml.getElementsByTagName("authoring_tool")[0].firstChild.nodeValue=="COLLADA Mixamo exporter"){
+		return exceptions["COLLADA Mixamo exporter"];
+	}
+	if(this.xml.getElementsByTagName("authoring_tool").length>0 && /Blender 2.5/.test(this.xml.getElementsByTagName("authoring_tool")[0].firstChild.nodeValue)){
+		return exceptions["Blender2.5"];
+	}
+}
 /**
 * Called when a collada document has is loaded
 * @param {string} url the url of the loaded document
 * @param {DOM Document} xml the xml document
 * @private
 */
-GLGE.Collada.prototype.loaded = function(url, xml){
-    try {
-        if(xml.getElementsByTagName("authoring_tool").length>0)
-            this.exceptions=exceptions[xml.getElementsByTagName("authoring_tool")[0].firstChild.nodeValue];
-    } 
-    catch (ex) {
-        GLGE.error("Collada error, authoring_tool: " + url);
-    }
-    if(!this.exceptions) this.exceptions=exceptions["default"];
-    this.xml = xml;
-    try {
-        this.initVisualScene();
-    } 
-    catch (ex) {
-        GLGE.error("Collada error, initVisualScene: " + url);
-    }
-    try {
-        this.getAnimations();
-    } 
-    catch (ex) {
-        GLGE.error("Collada error, getAnimations: " + url);
-    }
-    if (this.loadedCallback) {
-        this.loadedCallback(this);
-    }
+/// FIXME -- I used to have some try/catches going on here to avoid silent fails
+GLGE.Collada.prototype.loaded=function(url,xml){
+	this.xml=xml;
+	if(xml.getElementsByTagName("authoring_tool").length>0) this.exceptions=exceptions[xml.getElementsByTagName("authoring_tool")[0].firstChild.nodeValue];
+	this.exceptions=this.getExceptions();
+	if(!this.exceptions) this.exceptions=exceptions.default;
+	this.initVisualScene();
+	this.getAnimations();
 	this.fireEvent("loaded",{url:this.url});
 };
 
