@@ -368,6 +368,16 @@ GLGE.inverseMat4=function(mat){
 * multiplies two mat4's
 * @returns {GLGE.Mat} the matrix multiplication of the matrices
 */
+GLGE.mulMat4Vec3=function(mat1,vec2){
+	return GLGE.Vec3(mat1[0]*vec2[0]+mat1[1]*vec2[1]+mat1[2]*vec2[2]+mat1[3],
+			          mat1[4]*vec2[0]+mat1[5]*vec2[1]+mat1[6]*vec2[2]+mat1[7],
+			          mat1[8]*vec2[0]+mat1[9]*vec2[1]+mat1[10]*vec2[2]+mat1[11]);
+};
+
+/**
+* multiplies two mat4's
+* @returns {GLGE.Mat} the matrix multiplication of the matrices
+*/
 GLGE.mulMat4Vec4=function(mat1,vec2){
 	return GLGE.Vec4(mat1[0]*vec2[0]+mat1[1]*vec2[1]+mat1[2]*vec2[2]+mat1[3]*vec2[3],
 			          mat1[4]*vec2[0]+mat1[5]*vec2[1]+mat1[6]*vec2[2]+mat1[7]*vec2[3],
@@ -1007,8 +1017,9 @@ GLGE.BoundingVolume.prototype.addBoundingVolume=function(vol){
 	this.calcProps();
 }
 
-//scales a volume based on a transform matrix
+/*scales a volume based on a transform matrix
 GLGE.BoundingVolume.prototype.applyMatrix=function(matrix){
+    alert("Cannot transform individual limits by a matrix, need to min/max with all 8 vertices");
 	var coord0=[this.limits[0],this.limits[2],this.limits[4],1];
 	var coord1=[this.limits[1],this.limits[3],this.limits[5],1];
 	var coord0result=GLGE.mulMat4Vec4(matrix,coord0);
@@ -1021,7 +1032,7 @@ GLGE.BoundingVolume.prototype.applyMatrix=function(matrix){
 	this.limits[5]=coord1result[2];
 	this.calcProps();
 }
-
+*/
 GLGE.BoundingVolume.prototype.calcProps=function(){
 	var minX=this.limits[0];
 	var maxX=this.limits[1];
