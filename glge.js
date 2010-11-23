@@ -3181,7 +3181,7 @@ GLGE.Text.prototype.GLRender=function(gl,renderType,pickindex){
 		
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.GLfaces);
 		gl.drawElements(gl.TRIANGLES, this.GLfaces.numItems, gl.UNSIGNED_SHORT, 0);
-		gl.scene.lastMaterail=null;
+		gl.scene.lastMaterial=null;
 	}
 }
 /**
@@ -4161,8 +4161,8 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 	}
 
     
-	if(this.material && renderType==GLGE.RENDER_DEFAULT && gl.scene.lastMaterail!=this.material) this.material.textureUniforms(gl,program,lights,this);
-	gl.scene.lastMaterail=this.material;
+	if(this.material && renderType==GLGE.RENDER_DEFAULT/* && gl.scene.lastMaterial!=this.material*/) this.material.textureUniforms(gl,program,lights,this);
+	gl.scene.lastMaterial=this.material;
 }
 /**
 * Renders the object to the screen
