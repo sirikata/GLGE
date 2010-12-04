@@ -4175,12 +4175,7 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 		}
 	}
 
-    
-<<<<<<< HEAD
-	if(this.material && renderType==GLGE.RENDER_DEFAULT/* && gl.scene.lastMaterial!=this.material*/) this.material.textureUniforms(gl,program,lights,this);
-=======
 	if(this.material && renderType==GLGE.RENDER_DEFAULT && gl.scene.lastMaterial!=this.material) this.material.textureUniforms(gl,program,lights,this);
->>>>>>> 04a2ad809fa5532b2beb5f09dfe4e5e7397351e3
 	gl.scene.lastMaterial=this.material;
 }
 /**
