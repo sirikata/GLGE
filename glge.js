@@ -2293,6 +2293,8 @@ GLGE.AnimationCurve.prototype.setChannel=function(channel){
 	this.channel=channel
 }
 GLGE.AnimationCurve.prototype.getValue=function(frame){
+	if(this.keyFrames.length==0) return 0;
+	
 	if(this.caches[frame]) return this.caches[frame];
 	var startKey;
 	var endKey;
@@ -2699,26 +2701,24 @@ GLGE.Group.prototype.GLInit=function(gl){
 	}
 }
 /**
-* Renders the group to the render buffer
-* @private
-TODO: is this used anymore???
-GLGE.Group.prototype.GLRender=function(gl,renderType){
-	//animate this object
-	if(renderType==GLGE.RENDER_DEFAULT){
-		if(this.animation) this.animate();
-	}
-	if(!this.gl){
-		this.GLInit(gl);
-	}
+* Gets the pickable flag for the object
+*/
+GLGE.Group.prototype.getPickable=function(){
+	return this.pickable;
+}
+/**
+* Sets the pickable flag for the object
+* @param {boolean} value the picking flag
+*/
+GLGE.Group.prototype.setPickable=function(pickable){
 	for(var i=0;i<this.children.length;i++){
-		if(this.children[i].GLRender){
-			this.children[i].GLRender(gl,renderType);
+		if(this.children[i].setPickable){
+			this.children[i].setPickable(pickable);
 		}
 	}
+	this.pickable=pickable;
+	return this;
 }
-*/
-
-closure_export();
  
 /**
 * @class Class defining a channel of animation for an action
@@ -3511,6 +3511,21 @@ GLGE.Object.prototype.pkfragStr=pkfragStr.join("");
 
 
 /**
+* Gets the pickable flag for the object
+*/
+GLGE.Object.prototype.getPickable=function(){
+	return this.pickable;
+}
+/**
+* Sets the pickable flag for the object
+* @param {boolean} value the culling flag
+*/
+GLGE.Object.prototype.setPickable=function(pickable){
+	this.pickable=pickable;
+	return this;
+}
+
+/**
 * Gets the culling flag for the object
 */
 GLGE.Object.prototype.getCull=function(){
@@ -4161,7 +4176,11 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 	}
 
     
+<<<<<<< HEAD
 	if(this.material && renderType==GLGE.RENDER_DEFAULT/* && gl.scene.lastMaterial!=this.material*/) this.material.textureUniforms(gl,program,lights,this);
+=======
+	if(this.material && renderType==GLGE.RENDER_DEFAULT && gl.scene.lastMaterial!=this.material) this.material.textureUniforms(gl,program,lights,this);
+>>>>>>> 04a2ad809fa5532b2beb5f09dfe4e5e7397351e3
 	gl.scene.lastMaterial=this.material;
 }
 /**
@@ -5710,6 +5729,7 @@ GLGE.Scene.prototype.render=function(gl){
 	
 	var lights=gl.lights;
 	gl.scene=this;
+	this.lastMaterial=null;
 	
 	gl.disable(gl.BLEND);
 	
@@ -6816,7 +6836,12 @@ GLGE.TextureCube.prototype.setSrcPosY=function(url){
 * @param {string} url the texture image url
 */
 GLGE.TextureCube.prototype.setSrcNegY=function(url){
-	this.setSrc(url,"negY",8);
+	if(typeof url!="string"){
+		this.negY=url;
+		this.loadState+=8;
+	}else{
+		this.setSrc(url,"negY",8);
+	}
 	return this;
 };
 /**
@@ -6840,7 +6865,7 @@ GLGE.TextureCube.prototype.setSrcNegZ=function(url){
 * Sets the textures image location
 * @private
 **/
-GLGE.TextureCube.prototype.doTexture=function(gl){
+GLGE.TextureCube.prototype.doTexture=function(gl,object){
 	this.gl=gl;
 	//create the texture if it's not already created
 	if(!this.glTexture) this.glTexture=gl.createTexture();
@@ -7982,6 +8007,7 @@ GLGE.Material.prototype.getFragmentShader=function(lights){
 	shader=shader+"float totalweight=0.0;";
 	shader=shader+"int cnt=0;";
 	shader=shader+"vec2 spotoffset=vec2(0.0,0.0);";
+	shader=shader+"float dp=0.0;";
 	for(var i=0; i<lights.length;i++){
 	
 		if(tangent){
@@ -7992,6 +8018,7 @@ GLGE.Material.prototype.getFragmentShader=function(lights){
 			shader=shader+"lightvec=lightvec"+i+";\n";  
 			shader=shader+"viewvec=eyevec;\n"; 
 		}
+		shader=shader+"dp=dot(normal.rgb,eyevec.xyz); if (dp<0.0){(normal-=dp*eyevec/length(eyevec)); normal/=length(normal);}";
 		
 		if(lights[i].type==GLGE.L_POINT){ 
 			shader=shader+"dotN=max(dot(normal,normalize(-lightvec)),0.0);\n";       
@@ -8087,7 +8114,6 @@ GLGE.Material.prototype.getFragmentShader=function(lights){
 	shader=shader+"if(em>0.0){lightvalue=vec3(1.0,1.0,1.0);  fogfact=1.0;}\n";
 	shader=shader+"if (al<.25) discard;\n";    
 	shader=shader+"gl_FragColor =vec4(specvalue.rgb+color.rgb*(em+1.0)*lightvalue.rgb,al)*fogfact+vec4(fogcolor,al)*(1.0-fogfact);\n";
-	//shader=shader+"gl_FragColor =texture2D(TEXTURE"+shadowlights[0]+", (((spotcoord0.xy)/spotcoord"+i+".w)+1.0)/2.0+textureHeight);\n";
 
 	shader=shader+"}\n";
 	return shader;

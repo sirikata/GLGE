@@ -690,7 +690,7 @@ GLGE.Collada.prototype.getMaterial=function(id){
 	}*/
 	
 	//do emission color
-	/*var emission=technique.getElementsByTagName("emission");
+	var emission=technique.getElementsByTagName("emission");
 	if(emission.length>0){
 		child=emission[0].firstChild;
 		do{
@@ -708,7 +708,7 @@ GLGE.Collada.prototype.getMaterial=function(id){
 					break;
 			}
 		}while(child=child.nextSibling);
-	}*/
+	}
 
 	//do reflective color
 	var reflective=technique.getElementsByTagName("reflective");
@@ -850,6 +850,8 @@ GLGE.Collada.prototype.getInstanceGeometry=function(node){
 		for(i=0; i<meshes.length;i++){
 			if(objMaterials[meshes[i].matName] && objMaterials[meshes[i].matName].trans){
 				obj.setZtransparent(true);
+				//default to not pickable for transparent objects
+				obj.setPickable(false);
 			}
 			var multimat=new GLGE.MultiMaterial();
 			multimat.setMesh(meshes[i]);
@@ -872,7 +874,7 @@ GLGE.Collada.prototype.getInstanceGeometry=function(node){
 * @param {string} id the id of the sampler
 * @private
 */
-GLGE.Collada.prototype.getAnimationSampler=function(id){
+GLGE.Collada.prototype.getAnimationSampler=function(id,rotation){
 	var frameRate=30;
 	var inputs=this.xml.getElementById(id).getElementsByTagName("input");
 	var outputData={};
@@ -925,16 +927,20 @@ GLGE.Collada.prototype.getAnimationSampler=function(id){
 			if(outputData["INTERPOLATION"].data[i]=="LINEAR"){
 				point=new GLGE.LinearPoint();
 				point.setX(outputData["INPUT"].data[i]*frameRate);
-				point.setY(outputData["OUTPUT"].data[i*outputData["OUTPUT"].stride+j]);
-				var val=outputData["OUTPUT"].data[i*outputData["OUTPUT"].stride+j];
-				if(this.exceptions["flipangle"]){
-					if(i>0 && i<outputData["INPUT"].data.length-1){
-						var lastval=outputData["OUTPUT"].data[(i-1)*outputData["OUTPUT"].stride+j];
-						if(Math.abs(lastval-180-val)<Math.abs(lastval-val)){
-							point.setY(360+parseFloat(outputData["OUTPUT"].data[i*outputData["OUTPUT"].stride+j]));
+				var val=parseFloat(outputData["OUTPUT"].data[i*outputData["OUTPUT"].stride+j]);
+				if(val==-180) val=-179.9;
+				if(val==180) val=179.9;
+				if(this.exceptions["flipangle"] && rotation){
+					if(anim[j].lastval){
+						if(Math.abs(anim[j].lastval-(360+val))<Math.abs(anim[j].lastval-val)){
+							val=360+val;
+						}else if(Math.abs(anim[j].lastval-(val-360))<Math.abs(anim[j].lastval-val)){
+							val=val-360;
 						}
 					}
 				}
+				point.setY(val);
+				anim[j].lastval=val;
 				anim[j].addPoint(point);
 			}
 			
@@ -984,11 +990,11 @@ GLGE.Collada.prototype.getAnimationVector=function(channels){
 	//loop though the animation channels effecting this node
 	var anim={};
 	for(var i=0;i<channels.length;i++){
-		var animcurves=this.getAnimationSampler(channels[i].source);
+		var target=channels[i].target;
+		var animcurves=this.getAnimationSampler(channels[i].source,/ANGLE/i.test(target));
 		for(j=0;j<animcurves.length;j++){
 			maxFrame=Math.max(maxFrame,animcurves[j].keyFrames[animcurves[j].keyFrames.length-1].x);
 		}
-		var target=channels[i].target;
 		if(target[1].indexOf(".")!=-1){
 			var splittarget=target[1].split(".");
 			switch(splittarget[1]){
@@ -1349,6 +1355,7 @@ GLGE.Collada.prototype.getInstanceController=function(node){
 
 	//find the maximum vcount
 	var maxJoints=0;
+
 	for(var i=0; i<vcounts.length;i++) if(vcounts[i]) maxJoints=Math.max(maxJoints,parseInt(vcounts[i]));
 	vPointer=0;
 	var block;
@@ -1358,10 +1365,12 @@ GLGE.Collada.prototype.getInstanceController=function(node){
 				block=inputArray[k].block;
 					for(n=0;n<inputArray[k].data.stride;n++){
 					if(inputArray[k].data.pmask[n]){
-						if(block!="JOINT") outputData[block].push(inputArray[k].data.array[parseInt(vs[vPointer])+parseInt(inputArray[k].data.offset)]);
-							else outputData[block].push(parseInt(vs[vPointer]));	
+						if(block!="JOINT"){
+							outputData[block].push(inputArray[k].data.array[parseInt(vs[vPointer])+parseInt(inputArray[k].data.offset)]);
+						}else{
+							outputData[block].push(parseInt(vs[vPointer]));
+						}
 						vPointer++;
-						
 					}
 				}
 			}
@@ -1383,6 +1392,14 @@ GLGE.Collada.prototype.getInstanceController=function(node){
 	for(var i=0;i<outputData["JOINT"].length;i++){
 			outputData["JOINT"][i]++;
 	}
+	//blender fix
+	if(this.exceptions.negjoints){
+		for(var i=0;i<outputData["JOINT"].length;i++){
+			if(outputData["JOINT"][i]==0){
+				outputData["WEIGHT"][i]=0;
+			}
+		}
+	}
 
 	var skeletonData={vertexJoints:outputData["JOINT"],vertexWeight:outputData["WEIGHT"],joints:joints,inverseBindMatrix:inverseBindMatrix,count:maxJoints}
 
@@ -1401,6 +1418,8 @@ GLGE.Collada.prototype.getInstanceController=function(node){
 		if(objMaterials[meshes[i].matName]){
 			if(objMaterials[meshes[i].matName].trans){
 				obj.setZtransparent(true);
+				//default to not picable to transparent objects
+				obj.setPickable(false);
 			}
 			multimat.setMaterial(objMaterials[meshes[i].matName]);
 		}else{
@@ -1518,7 +1537,7 @@ GLGE.Collada.prototype.initVisualScene=function(){
 var exceptions={
 	"default":{},
 	"COLLADA Mixamo exporter":{badAccessor:true},
-	"Blender2.5":{flipangle:true}
+	"Blender2.5":{flipangle:true,negjoints:true}
 }
 	
 GLGE.Collada.prototype.getExceptions=function(){
