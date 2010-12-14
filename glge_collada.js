@@ -1513,17 +1513,46 @@ GLGE.Collada.prototype.getNode=function(node,ref){
 * @private
 */
 GLGE.Collada.prototype.initVisualScene=function(){
+    var metadata=this.xml.getElementsByTagName("asset");
+    var up_axis="Z_UP";
+    if(metadata.length) {
+        var up_axis_node=metadata[0].getElementsByTagName("up_axis");
+        if (up_axis_node.length) {
+            up_axis_node=up_axis_node[0];
+            var cur_axis=up_axis_node.firstChild.nodeValue;
+            if (cur_axis.length)
+                up_axis=cur_axis;
+        }
+    }
+    var transformRoot=this;
+    if (up_axis[0]!="Z"&&up_axis[0]!="z") {
+        transformRoot = new GLGE.Group();
+        this.addChild(transformRoot);
+        if (up_axis[0]!="Y"||up_axis[0]!="y") {
+            this.setRotMatrix(GLGE.Mat4([1, 0 , 0,  0,
+					                     0, 0, -1, 0,
+					                     0, 1, 0, 0,
+					                     0, 0, 0, 1]));
+          
+        }else {
+            this.setRotMatrix(GLGE.Mat4([0, 0 , -1,  0,
+					                     0, 1, 0, 0,
+					                     1, 0, 0, 0,
+					                     0, 0, 0, 1]));
+            
+        }
+    }
 	if(!this.rootId){
 		var scene=this.xml.getElementsByTagName("scene");
 		if(scene.length>0){
-			this.addGroup(this.getNode(scene[0]));
+			transformRoot.addGroup(this.getNode(scene[0]));
 		}else{
 			GLGE.error("Please indicate the asset to render in Collada Document"+this.url);
 		}
 	}else{
 		var root=this.xml.getElementById(this.rootId);
 		if(root){
-			this.addGroup(this.getNode(root));
+			transformRoot.addGroup(this.getNode(root));
 		}else{
 			GLGE.error("Asset "+this.rootId+" not found in document"+this.url);
 		}
