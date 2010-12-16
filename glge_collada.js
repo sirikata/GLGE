@@ -1461,7 +1461,7 @@ GLGE.Collada.prototype.getNode=function(node,ref){
 	var child=node.firstChild;
 	var matrix=GLGE.identMatrix();
 	var data;
-	do{
+    if(child) do{
 		switch(child.tagName){
 			case "node":
 				newGroup.addGroup(this.getNode(child));
