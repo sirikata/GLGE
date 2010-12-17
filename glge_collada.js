@@ -1525,19 +1525,19 @@ GLGE.Collada.prototype.initVisualScene=function(){
         }
     }
     var transformRoot=this;
-    if (up_axis[0]!="Z"&&up_axis[0]!="z") {
+    if (up_axis[0]!="Y"&&up_axis[0]!="y") {
         transformRoot = new GLGE.Group();
         this.addChild(transformRoot);
-        if (up_axis[0]!="Y"||up_axis[0]!="y") {
-            this.setRotMatrix(GLGE.Mat4([1, 0 , 0,  0,
-					                     0, 0, -1, 0,
-					                     0, 1, 0, 0,
+        if (up_axis[0]!="Z"&&up_axis[0]!="z") {
+            this.setRotMatrix(GLGE.Mat4([0, -1 , 0,  0,
+					                     1, 0, 0, 0,
+					                     0, 0, 1, 0,
 					                     0, 0, 0, 1]));
           
         }else {
-            this.setRotMatrix(GLGE.Mat4([0, 0 , -1,  0,
-					                     0, 1, 0, 0,
-					                     1, 0, 0, 0,
+            this.setRotMatrix(GLGE.Mat4([1, 0 , 0,  0,
+					                     0, 0, 1, 0,
+					                     0, -1, 0, 0,
 					                     0, 0, 0, 1]));
             
         }
