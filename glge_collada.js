@@ -329,8 +329,10 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 				}
 			}
 			inputs[n].block=block;
+			inputs[n].offset=parseInt(inputs[n].getAttribute("offset"));
 			outputData[block]=[];
-			inputArray[inputs[n].getAttribute("offset")]=inputs[n];
+			inputArray.push(inputs[n]);
+			//inputArray[inputs[n].getAttribute("offset")]=inputs[n];
 		}
 		//get the face data and push the data into the mesh
 		if(triangles[i].getElementsByTagName("p")[0].data) faces=triangles[i].getElementsByTagName("p")[0].data;
@@ -344,21 +346,25 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 			}
 		}
 		
-		for(j=0;j<faces.length;j=j+inputArray.length){
+		//get max offset
+		var maxoffset=0;
+		for(n=0;n<inputArray.length;n++){
+			maxoffset=Math.max(inputArray[n].offset+1,maxoffset);
+		}
+		
+		for(j=0;j<faces.length;j=j+maxoffset){
 			for(n=0;n<inputArray.length;n++){
 				for(var l=0;l<inputArray[n].data.length;l++){
 					var block=inputArray[n].data[l].block;
-					pcnt=0;
 					for(k=0;k<inputArray[n].data[l].stride;k++){
 						if(inputArray[n].data[l].pmask[k]){
-							outputData[block].push(inputArray[n].data[l].array[faces[j+n]*inputArray[n].data[l].stride+k+inputArray[n].data[l].offset]);
-							pcnt++;
+							outputData[block].push(inputArray[n].data[l].array[faces[j+inputArray[n].offset]*inputArray[n].data[l].stride+k+inputArray[n].data[l].offset]);
 						}
 					}
 					if(skeletonData && block=="POSITION"){
 						for(k=0;k<skeletonData.count;k++){
-							vertexJoints.push(skeletonData.vertexJoints[faces[j+n]*skeletonData.count+k]);
-							vertexWeights.push(skeletonData.vertexWeight[faces[j+n]*skeletonData.count+k]);
+							vertexJoints.push(skeletonData.vertexJoints[faces[j+inputArray[n].offset]*skeletonData.count+k]);
+							vertexWeights.push(skeletonData.vertexWeight[faces[j+inputArray[n].offset]*skeletonData.count+k]);
 						}
 					}
 					//account for 1D and 2D
@@ -399,6 +405,8 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 		if(outputData.TEXCOORD0) trimesh.setUV(outputData.TEXCOORD0);
 		if(!outputData.TEXCOORD0 && outputData.TEXCOORD1) trimesh.setUV(outputData.TEXCOORD1);
 		if(outputData.TEXCOORD1) trimesh.setUV2(outputData.TEXCOORD1);
+
+
 		if(skeletonData){
 			if(skeletonData.count>8){
 				var newjoints=[];
@@ -513,7 +521,7 @@ GLGE.Collada.prototype.getImage=function(id){
 * creates a material layer
 * @private
 */
-GLGE.Collada.prototype.createMaterialLayer=function(node,material,common,mapto){
+GLGE.Collada.prototype.createMaterialLayer=function(node,material,common,mapto,bvi){
 	var textureImage;
 	var imageid=this.getSurface(common,this.getSampler(common,node.getAttribute("texture")));
 	if(!imageid) imageid=node.getAttribute("texture"); //assume converter bug  - workround
@@ -524,7 +532,13 @@ GLGE.Collada.prototype.createMaterialLayer=function(node,material,common,mapto){
 	var layer=new GLGE.MaterialLayer();
 	layer.setTexture(texture);
 	layer.setMapto(mapto);
-	layer.setMapinput(GLGE.UV1);
+	if(node.hasAttribute("texcoord") && bvi[node.getAttribute("texcoord")]){
+		if(bvi[node.getAttribute("texcoord")]==1){
+			layer.setMapinput(GLGE.UV2);
+		}else{
+			layer.setMapinput(GLGE.UV1);
+		}
+	}
 	if(node.getElementsByTagName("blend_mode")[0]) var blend=node.getElementsByTagName("blend_mode")[0].firstChild.nodeValue;
 	if(blend=="MULTIPLY")  layer.setBlendMode(GLGE.BL_MUL);
 	material.addMaterialLayer(layer);
@@ -563,7 +577,7 @@ var MaterialCache={};
 * @param {string} id the id or the material element
 * @private
 */
-GLGE.Collada.prototype.getMaterial=function(id){	
+GLGE.Collada.prototype.getMaterial=function(id,bvi){	
 	if(!MaterialCache[this.url]) MaterialCache[this.url]={};
 	if(MaterialCache[this.url][id]){
 		return MaterialCache[this.url][id];
@@ -584,6 +598,28 @@ GLGE.Collada.prototype.getMaterial=function(id){
 	var child;
 	var color;
 	
+	
+	//do ambient lighting
+	var ambient=technique.getElementsByTagName("ambient");
+	if(ambient.length>0){
+		child=ambient[0].firstChild;
+		do{
+			switch(child.tagName){
+				case "color":
+					color=child.firstChild.nodeValue.replace(/\s+/g,' ').split(" ");
+					returnMaterial.setAmbient({r:color[0],g:color[1],b:color[2]});
+					break;
+				case "param":
+					color=this.getFloat4(common,child.getAttribute("ref")).replace(/\s+/g,' ').split(" ");
+					returnMaterial.setAmbient({r:color[0],g:color[1],b:color[2]});
+					break;
+				case "texture":
+					this.createMaterialLayer(child,returnMaterial,common,GLGE.M_AMBIENT,bvi);
+					break;
+			}
+		}while(child=child.nextSibling);
+	}
+	
 	//do diffuse color
 	var diffuse=technique.getElementsByTagName("diffuse");
 	if(diffuse.length>0){
@@ -599,7 +635,7 @@ GLGE.Collada.prototype.getMaterial=function(id){
 					returnMaterial.setColor({r:color[0],g:color[1],b:color[2]});
 					break;
 				case "texture":
-					this.createMaterialLayer(child,returnMaterial,common,GLGE.M_COLOR);
+					this.createMaterialLayer(child,returnMaterial,common,GLGE.M_COLOR,bvi);
 					break;
 			}
 		}while(child=child.nextSibling);
@@ -612,7 +648,7 @@ GLGE.Collada.prototype.getMaterial=function(id){
 		do{
 			switch(child.tagName){
 				case "texture":
-					this.createMaterialLayer(child,returnMaterial,common,GLGE.M_NOR);
+					this.createMaterialLayer(child,returnMaterial,common,GLGE.M_NOR,bvi);
 					break;
 			}
 		}while(child=child.nextSibling);
@@ -636,7 +672,7 @@ GLGE.Collada.prototype.getMaterial=function(id){
 					break;
                 // MCB: texture is invalid here. should remove this case.
 				case "texture":
-					this.createMaterialLayer(child,returnMaterial,common,GLGE.M_SHINE);
+					this.createMaterialLayer(child,returnMaterial,common,GLGE.M_SHINE,bvi);
 					break;
 			}
 		}while(child=child.nextSibling);
@@ -658,7 +694,7 @@ GLGE.Collada.prototype.getMaterial=function(id){
 					returnMaterial.setSpecularColor({r:color[0],g:color[1],b:color[2]});
 					break;
 				case "texture":
-					this.createMaterialLayer(child,returnMaterial,common,GLGE.M_SPECCOLOR);
+					this.createMaterialLayer(child,returnMaterial,common,GLGE.M_SPECCOLOR,bvi);
 					break;
 			}
 		}while(child=child.nextSibling);
@@ -704,7 +740,7 @@ GLGE.Collada.prototype.getMaterial=function(id){
 					returnMaterial.setEmit(color[0]);
 					break;
 				case "texture":
-					this.createMaterialLayer(child,returnMaterial,common,GLGE.M_EMIT);
+					this.createMaterialLayer(child,returnMaterial,common,GLGE.M_EMIT,bvi);
 					break;
 			}
 		}while(child=child.nextSibling);
@@ -725,7 +761,7 @@ GLGE.Collada.prototype.getMaterial=function(id){
 //TODO				returnMaterial.setReflectiveColor({r:color[0],g:color[1],b:color[2]});
 					break;
 				case "texture":
-					this.createMaterialLayer(child,returnMaterial,common,GLGE.M_REFLECT);
+					this.createMaterialLayer(child,returnMaterial,common,GLGE.M_REFLECT,bvi);
 					break;
 			}
 		}while(child=child.nextSibling);
@@ -784,7 +820,7 @@ GLGE.Collada.prototype.getMaterial=function(id){
 					break;
                 // MCB: this case assumes opaque="A_ONE" and transparency="1.0"
 				case "texture":
-					this.createMaterialLayer(child,returnMaterial,common,GLGE.M_ALPHA);
+					this.createMaterialLayer(child,returnMaterial,common,GLGE.M_ALPHA,bvi);
 					returnMaterial.trans=true;
 					break;
 			}
@@ -842,7 +878,12 @@ GLGE.Collada.prototype.getInstanceGeometry=function(node){
 		var materials=node.getElementsByTagName("instance_material");
 		var objMaterials={};
 		for(var i=0; i<materials.length;i++){
-			mat=this.getMaterial(materials[i].getAttribute("target").substr(1));
+			var bvis=materials[i].getElementsByTagName("bind_vertex_input");
+			var bvi={};
+			for(var j=0;j<bvis.length;j++){
+				bvi[bvis[j].getAttribute("semantic")]=bvis[j].getAttribute("input_set");
+			}
+			mat=this.getMaterial(materials[i].getAttribute("target").substr(1),bvi);
 			objMaterials[materials[i].getAttribute("symbol")]=mat;
 		}
 		//create GLGE object
@@ -1408,7 +1449,12 @@ GLGE.Collada.prototype.getInstanceController=function(node){
 	var materials=node.getElementsByTagName("instance_material");
 	var objMaterials={};
 	for(var i=0; i<materials.length;i++){
-		mat=this.getMaterial(materials[i].getAttribute("target").substr(1));
+		var bvis=materials[i].getElementsByTagName("bind_vertex_input");
+		var bvi={};
+		for(var j=0;j<bvis.length;j++){
+			bvi[bvis[j].getAttribute("semantic")]=bvis[j].getAttribute("input_set");
+		}
+		mat=this.getMaterial(materials[i].getAttribute("target").substr(1),bvi);
 		objMaterials[materials[i].getAttribute("symbol")]=mat;
 	}
 	//create GLGE object
