@@ -987,11 +987,11 @@ GLGE.Collada.prototype.getAnimationSampler=function(id,rotation){
 		for(var j=0;j<outputData["OUTPUT"].stride;j++){
 			anim[j].name=outputData["OUTPUT"].names[j];
 			//fix if type is bezier and no tangent the fallback to linear
-			if(outputData["INTERPOLATION"].data[i]=="BEZIER" && !outputData["IN_TANGENT"]){
-				outputData["INTERPOLATION"].data[i]="LINEAR"
+			if(outputData["INTERPOLATION"] && outputData["INTERPOLATION"].data[i]=="BEZIER" && !outputData["IN_TANGENT"]){
+				outputData["INTERPOLATION"].data[i]="LINEAR";
 			}
 			
-			if(outputData["INTERPOLATION"].data[i]=="LINEAR"){
+			if((!outputData["INTERPOLATION"]) || outputData["INTERPOLATION"].data[i]=="LINEAR"){
 				point=new GLGE.LinearPoint();
 				point.setX(outputData["INPUT"].data[i]*frameRate);
 				var val=parseFloat(outputData["OUTPUT"].data[i*outputData["OUTPUT"].stride+j]);
@@ -1011,7 +1011,7 @@ GLGE.Collada.prototype.getAnimationSampler=function(id,rotation){
 				anim[j].addPoint(point);
 			}
 			
-			if(outputData["INTERPOLATION"].data[i]=="BEZIER"){
+			if(outputData["INTERPOLATION"] && outputData["INTERPOLATION"].data[i]=="BEZIER"){
 				point=new GLGE.BezTriple();
 				point.setX1(outputData["IN_TANGENT"].data[(i*outputData["OUTPUT"].stride+j)*2]*frameRate);
 				point.setY1(outputData["IN_TANGENT"].data[(i*outputData["OUTPUT"].stride+j)*2+1]);

@@ -4406,7 +4406,6 @@ GLGE.Mesh.prototype.getBoundingVolume=function(currentMatrix){
 				maxY=Math.max(maxY,loc[1]);
 				minZ=Math.min(minZ,loc[2]);
 				maxZ=Math.max(maxZ,loc[2]);
-			    
 		    }
             
         }else {            
