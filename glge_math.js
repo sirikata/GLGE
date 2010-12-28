@@ -1004,15 +1004,27 @@ GLGE.BoundingVolume.prototype.getSphereRadius=function(){
 GLGE.BoundingVolume.prototype.getCenter=function(){
 	return this.center;
 }
-
+GLGE.BoundingVolume.prototype.isNull=function(){
+	return this.limits[0]==0&&this.limits[1]==0&&this.limits[2]==0&&this.limits[3]==0&&this.limits[4]==0&&this.limits[5]==0;
+}
 //adds an additional bounding volume to resize the current and returns the result
 GLGE.BoundingVolume.prototype.addBoundingVolume=function(vol){
-	this.limits[0]=Math.min(vol.limits[0],this.limits[0]);
-	this.limits[2]=Math.min(vol.limits[2],this.limits[2]);
-	this.limits[4]=Math.min(vol.limits[4],this.limits[4]);
-	this.limits[1]=Math.max(vol.limits[1],this.limits[1]);
-	this.limits[3]=Math.max(vol.limits[3],this.limits[3]);
-	this.limits[5]=Math.max(vol.limits[5],this.limits[5]);
+	if (this.isNull()) {
+		this.limits[0]=vol.limits[0];
+		this.limits[1]=vol.limits[1];
+		this.limits[2]=vol.limits[2];
+		this.limits[3]=vol.limits[3];
+		this.limits[4]=vol.limits[4];
+		this.limits[5]=vol.limits[5];
+	}
+	else if (!vol.isNull()) {
+		this.limits[0]=Math.min(vol.limits[0],this.limits[0]);
+		this.limits[2]=Math.min(vol.limits[2],this.limits[2]);
+		this.limits[4]=Math.min(vol.limits[4],this.limits[4]);
+		this.limits[1]=Math.max(vol.limits[1],this.limits[1]);
+		this.limits[3]=Math.max(vol.limits[3],this.limits[3]);
+		this.limits[5]=Math.max(vol.limits[5],this.limits[5]);
+    }
 	
 	this.calcProps();
 }
