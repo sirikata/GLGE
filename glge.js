@@ -34,11 +34,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 
- if(!window["GLGE"]){
+ if(typeof(GLGE) == "undefined"){
 	/**
 	* @namespace Holds the functionality of the library
 	*/
-	window["GLGE"]={};
+	GLGE = {};
 }
 
 (function(GLGE){
@@ -341,8 +341,12 @@ GLGE.getGLShader=function(gl,type,str){
 		gl.shaderSource(shader, str);
 		gl.compileShader(shader);
 		if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-		      alert(gl.getShaderInfoLog(shader));
-		      return;
+			try {
+				alert(gl.getShaderInfoLog(shader));
+				return;
+			} catch (e) {
+				/* Firefox hack: Assume no error if there was no shader log. */
+			}
 		}
 		gl.shaderCache[hash]=shader;
 	}
@@ -2581,26 +2585,31 @@ GLGE.Group.prototype.getNames=function(names){
 * Gets the bounding volume for this group
 * @returns {GLGE.BoundingVolume} 
 */
-GLGE.Group.prototype.getBoundingVolume=function(local){
-	this.boundingVolume=null;
+GLGE.Group.prototype.getBoundingVolume=function(local,currentMatrix){
+    var localMatrix;
+	if(local){
+		localMatrix=this.getLocalMatrix();
+	}else{
+		localMatrix=this.getModelMatrix();
+	}
+    if (currentMatrix) {
+        localMatrix=GLGE.mulMat4(currentMatrix,localMatrix);
+    }
+	var boundingVolume=null;
 	for(var i=0; i<this.children.length;i++){
 		if(this.children[i].getBoundingVolume){
-			if(!this.boundingVolume) {
-				this.boundingVolume=this.children[i].getBoundingVolume(true).clone();
+			if(!boundingVolume) {
+				boundingVolume=this.children[i].getBoundingVolume(true,localMatrix);
 			}else{
-				this.boundingVolume.addBoundingVolume(this.children[i].getBoundingVolume(true));
+				boundingVolume.addBoundingVolume(this.children[i].getBoundingVolume(true,localMatrix));
 			}
 		}
 	}
-	if(!this.boundingVolume) this.boundingVolume=new GLGE.BoundingVolume(0,0,0,0,0,0);
-	if(local){
-		this.boundingVolume.applyMatrix(this.getLocalMatrix());
-	}else{
-		this.boundingVolume.applyMatrix(this.getModelMatrix());
-	}
-	
-	return this.boundingVolume;
-}
+	if(!boundingVolume) boundingVolume=new GLGE.BoundingVolume(0,0,0,0,0,0);
+	if (!currentMatrix)
+        this.boundingVolume=boundingVolume.clone();
+	return boundingVolume;
+};
 /**
 * Gets a list of all objects in this group
 * @param {array} pointer to an array [optional]
@@ -3172,7 +3181,7 @@ GLGE.Text.prototype.GLRender=function(gl,renderType,pickindex){
 		
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.GLfaces);
 		gl.drawElements(gl.TRIANGLES, this.GLfaces.numItems, gl.UNSIGNED_SHORT, 0);
-		gl.scene.lastMaterail=null;
+		gl.scene.lastMaterial=null;
 	}
 }
 /**
@@ -3579,10 +3588,19 @@ GLGE.Object.prototype.setSkeleton=function(value){
 	return this;
 }
 
-GLGE.Object.prototype.getBoundingVolume=function(local){
+GLGE.Object.prototype.getBoundingVolume=function(local,currentMatrix){
 	if(!local) local=0;
 	if(!this.boundingVolume) this.boundingVolume=[];
 	if(!this.boundmatrix) this.boundmatrix=[];
+    var localMatrix;
+	if(local){
+		localMatrix=this.getLocalMatrix();
+	}else{
+		localMatrix=this.getModelMatrix();
+	}
+    if (currentMatrix) {
+        localMatrix=GLGE.mulMat4(currentMatrix,localMatrix);
+    }
 	
 	var matrix=this.getModelMatrix();
 	if(matrix!=this.boundmatrix[local] || !this.boundingVolume[local]){
@@ -3591,21 +3609,19 @@ GLGE.Object.prototype.getBoundingVolume=function(local){
 		for(var i=0;i<multimaterials.length;i++){
 			if(multimaterials[i].lods[0].mesh){
 				if(!boundingVolume){
-					boundingVolume=multimaterials[i].lods[0].mesh.getBoundingVolume().clone();
+					boundingVolume=multimaterials[i].lods[0].mesh.getBoundingVolume(localMatrix).clone();
 				}else{
-					boundingVolume.addBoundingVolume(multimaterials[i].lods[0].mesh.getBoundingVolume());
+					boundingVolume.addBoundingVolume(multimaterials[i].lods[0].mesh.getBoundingVolume(localMatrix));
 				}
 			}
 		}
 		if(!boundingVolume) boundingVolume=new GLGE.BoundingVolume(0,0,0,0,0,0);
-		if(local){
-			boundingVolume.applyMatrix(this.getLocalMatrix());
-		}else{
-			boundingVolume.applyMatrix(this.getModelMatrix());
-		}
-		this.boundingVolume[local]=boundingVolume;
+        if (!currentMatrix)
+		    this.boundingVolume[local]=boundingVolume;
+        else
+            return boundingVolume;
 	}
-	this.boundmatrix[local]=matrix;
+    this.boundmatrix[local]=matrix;
 	return this.boundingVolume[local];
 }
 
@@ -3993,10 +4009,10 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 	if(!pc.mvMatrix) pc.mvMatrix={cameraMatrix:null,modelMatrix:null};
 	var mvCache=pc.mvMatrix;
 	
-	if(mvCache.camerMatrix!=cameraMatrix || mvCache.modelMatrix!=modelMatrix){
+	if(true || mvCache.camerMatrix!=cameraMatrix || mvCache.modelMatrix!=modelMatrix){
 		try{
 		//generate and set the modelView matrix
-		if(!this.caches.mvMatrix) this.caches.mvMatrix=GLGE.mulMat4(cameraMatrix,modelMatrix);
+		if(true||!this.caches.mvMatrix) this.caches.mvMatrix=GLGE.mulMat4(cameraMatrix,modelMatrix);
 		mvMatrix=this.caches.mvMatrix;
 		
 		if(this.mesh.joints){
@@ -4015,7 +4031,7 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 		//invCamera matrix
 		var icUniform = GLGE.getUniformLocation(gl,program, "envMat");
 		if(icUniform){
-			if(!this.caches.envMat){
+			if(!this.caches.envMat){                                        /// FIXME might need to be if(true)  -- crazy bug
 				var envMat = GLGE.inverseMat4(mvMatrix);
 				envMat[3]=0;
 				envMat[7]=0;
@@ -4057,7 +4073,9 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 		
 		mvCache.camerMatrix=cameraMatrix;
 		mvCache.modelMatrix=modelMatrix;
-		}catch(e){}
+		}catch(e){
+            GLGE.error("Serious error in setting of camera cache"+ e);
+        }
 	}
 
 
@@ -4124,7 +4142,12 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 			if(typeof this.mesh.joints[i]=="string"){
 				if(!this.bones) this.bones=this.skeleton.getNames();
 				if(this.bones){
-					var modelMatrix=this.bones[this.mesh.joints[i]].getModelMatrix();
+                    try {
+                        var modelMatrix = this.bones[this.mesh.joints[i]].getModelMatrix();
+                    }
+                    catch (e) {
+                        GLGE.error("skeleton/joints problem")
+                    }
 				}
 			}else{
 				var modelMatrix=this.mesh.joints[i].getModelMatrix();
@@ -4152,7 +4175,6 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 		}
 	}
 
-    
 	if(this.material && renderType==GLGE.RENDER_DEFAULT && gl.scene.lastMaterial!=this.material) this.material.textureUniforms(gl,program,lights,this);
 	gl.scene.lastMaterial=this.material;
 }
@@ -4360,26 +4382,52 @@ GLGE.Mesh.prototype.loaded=false;
 * Gets the bounding volume for the mesh
 * @returns {GLGE.BoundingVolume} 
 */
-GLGE.Mesh.prototype.getBoundingVolume=function(){
+GLGE.Mesh.prototype.getBoundingVolume=function(currentMatrix){
 	if(!this.boundingVolume){
 		var minX,maxX,minY,maxY,minZ,maxZ;
 		for(var i=0;i<this.buffers.length;i++){
-			if(this.buffers[i].name=="position") var positions=this.buffers[i].data;
-		}
-		for(var i=0;i<positions.length;i=i+3){
-			if(i==0){
-				minX=maxX=positions[i];
-				minY=maxY=positions[i+1];
-				minZ=maxZ=positions[i+2];
-			}else{
+			if(this.buffers[i].name=="position") {
+                var positions=this.buffers[i].data;
+		
+        if (currentMatrix) {
+            if (positions.length>=3) {               
+                var loc=GLGE.mulMat4Vec3(currentMatrix,positions.slice(0,3));
+			    minX=maxX=loc[0];
+			    minY=maxY=loc[1];
+			    minZ=maxZ=loc[2];
+            }else {
+                minX=minY=minZ=maxX=maxY=maxZ=0;
+            }
+		    for(var j=3;j+2<positions.length;j=j+3){
+                var loc=GLGE.mulMat4Vec3(currentMatrix,positions.slice(j,j+3));
+				minX=Math.min(minX,loc[0]);
+				maxX=Math.max(maxX,loc[0]);
+				minY=Math.min(minY,loc[1]);
+				maxY=Math.max(maxY,loc[1]);
+				minZ=Math.min(minZ,loc[2]);
+				maxZ=Math.max(maxZ,loc[2]);
+		    }
+            
+        }else {            
+            if (positions.length>=3) {               
+			    minX=maxX=positions[0];
+			    minY=maxY=positions[1];
+			    minZ=maxZ=positions[2];
+            }else {
+                minX=minY=minZ=maxX=maxY=maxZ=0;
+            }
+		    for(var j=3;j+3<positions.length;i=j+3){
 				minX=Math.min(minX,positions[i]);
 				maxX=Math.max(maxX,positions[i]);
 				minY=Math.min(minY,positions[i+1]);
 				maxY=Math.max(maxY,positions[i+1]);
 				minZ=Math.min(minZ,positions[i+2]);
 				maxZ=Math.max(maxZ,positions[i+2]);
-			}
-		}
+			    
+		    }
+        }
+            }
+        }
 		this.boundingVolume=new GLGE.BoundingVolume(minX,maxX,minY,maxY,minZ,maxZ);
 	}
 	return this.boundingVolume;
@@ -5923,7 +5971,10 @@ GLGE.Scene.prototype.ray=function(origin,direction){
 		//revert the view matrix
 		this.camera.matrix=origmatrix;	
 		this.camera.pMatrix=origpmatrix;
-		return {object:obj,distance:dist,coord:[origin[0]-direction[0]*dist,origin[1]-direction[1]*dist,origin[2]-direction[2]*dist],normal:norm,texture:tex};
+		if (obj) {
+			return {object:obj,distance:dist,coord:[origin[0]-direction[0]*dist,origin[1]-direction[1]*dist,origin[2]-direction[2]*dist],normal:norm,texture:tex};
+		}
+		return null;
 }
 
 /**
@@ -5933,9 +5984,24 @@ GLGE.Scene.prototype.ray=function(origin,direction){
 */
 
 GLGE.Scene.prototype.pick=function(x,y){
+	var ray = this.makeRay(x,y);
+	if (!ray) {
+		return null;
+	}
+	return this.ray(ray.origin,ray.coord);
+};
+
+
+/**
+* Returns an object containing origin and coord, starting from the camera and pointing towards (x,y)
+* @param x the canvas x coord to pick
+* @param y the canvas y coord to pick
+*/
+
+GLGE.Scene.prototype.makeRay=function(x,y){
 	if(!this.camera){
 		GLGE.error("No camera set for picking");
-		return false;
+		return null;
 	}else if(this.camera.matrix && this.camera.pMatrix){
 		var height=this.renderer.getViewportHeight();
 		var width=this.renderer.getViewportWidth();
@@ -5951,13 +6017,13 @@ GLGE.Scene.prototype.pick=function(x,y){
 		coord=[-(coord[0]/coord[3]-origin[0]),-(coord[1]/coord[3]-origin[1]),-(coord[2]/coord[3]-origin[2])];
 		coord=GLGE.toUnitVec3(coord);
 
-		return this.ray(origin,coord);
+		return {origin: origin, coord: coord};
 		
 	}else{
-		return false;
+		return null;
 	}
 	
-}
+};
 
 
 
@@ -5973,7 +6039,7 @@ GLGE.Renderer=function(canvas,error){
 		this.gl = canvas.getContext("experimental-webgl",{alpha:true,depth:true,stencil:true,antialias:true,premultipliedAlpha:true});
 	} catch(e) {}
 	if(!this.gl) {
-		if(!error){
+		if( (!error) && (typeof(globalNoWebGLError)=="undefined")){
 			var div=document.createElement("div");
 			div.setAttribute("style","position: absolute; top: 10px; left: 10px; font-family: sans-serif; font-size: 14px; padding: 10px;background-color: #fcffcb;color: #800; width: 200px; border:2px solid #f00");
 			div.innerHTML="Cannot detect webgl please download a compatible browser";
@@ -6185,6 +6251,7 @@ GLGE.Renderer.prototype.setScene=function(scene){
 GLGE.Renderer.prototype.render=function(){
 	if(this.cullFaces) this.gl.enable(this.gl.CULL_FACE);
 	
+    if (!this.scene) return;
 	this.scene.render(this.gl);
 	//if this is the first ever pass then render twice to fill shadow buffers
 	if(!this.rendered){
@@ -7919,6 +7986,8 @@ GLGE.Material.prototype.getFragmentShader=function(lights){
 	shader=shader+"vec4 color = baseColor;"; //set the initial color
 	shader=shader+"float pheight=0.0;\n"
 	shader=shader+"vec3 textureHeight=vec3(0.0,0.0,0.0);\n";
+    var anyAlpha=false;
+    var diffuseLayer=0;
 	for(i=0; i<this.layers.length;i++){
 		shader=shader+"textureCoords=textureCoords"+i+"+textureHeight;\n";
 		shader=shader+"mask=layeralpha"+i+"*mask;\n";
@@ -7939,6 +8008,7 @@ GLGE.Material.prototype.getFragmentShader=function(lights){
 		}
 		
 		if((this.layers[i].mapto & GLGE.M_COLOR) == GLGE.M_COLOR){			
+            diffuseLayer=i;
 			if(this.layers[i].blendMode==GLGE.BL_MUL){
 				shader=shader+"color = color*(1.0-mask) + color*texture"+sampletype+"(TEXTURE"+this.layers[i].texture.idx+", textureCoords."+txcoord+")*mask;\n";
 			}
@@ -7985,12 +8055,25 @@ GLGE.Material.prototype.getFragmentShader=function(lights){
 			tangent=true;
 		}
 		if((this.layers[i].mapto & GLGE.M_ALPHA) == GLGE.M_ALPHA){
+            anyAlpha=true;
 			shader=shader+"al = al*(1.0-mask) + texture"+sampletype+"(TEXTURE"+this.layers[i].texture.idx+", textureCoords."+txcoord+").a*mask;\n";
 		}
 		if((this.layers[i].mapto & GLGE.M_AMBIENT) == GLGE.M_AMBIENT){
 			shader=shader+"amblight = amblight*(1.0-mask) + texture"+sampletype+"(TEXTURE"+this.layers[i].texture.idx+", textureCoords."+txcoord+").rgb*mask;\n";
 		}
 	}		
+    if (!anyAlpha && this.layers.length) {
+		if(this.layers[diffuseLayer].getTexture().className=="Texture" || this.layers[diffuseLayer].getTexture().className=="TextureCanvas"  || this.layers[diffuseLayer].getTexture().className=="TextureVideo" ) {
+			var txcoord="xy";
+			var sampletype="2D";
+		}else{
+			var txcoord="xyz";
+			var sampletype="Cube";
+		}
+
+		shader=shader+"al = al*(1.0-mask) + texture"+sampletype+"(TEXTURE"+this.layers[diffuseLayer].texture.idx+", textureCoords."+txcoord+").a*mask;\n";
+        
+    }
 	shader=shader+"if(al<0.5) discard;\n";
 	if(this.binaryAlpha) shader=shader+"al=1.0;\n";
 	if(tangent){
@@ -8115,6 +8198,7 @@ GLGE.Material.prototype.getFragmentShader=function(lights){
 	
 	shader=shader+"lightvalue = (lightvalue)*ref;\n";
 	shader=shader+"if(em>0.0){lightvalue=vec3(1.0,1.0,1.0);  fogfact=1.0;}\n";
+	shader=shader+"if (al<.25) discard;\n";    
 	shader=shader+"gl_FragColor =vec4(specvalue.rgb+color.rgb*(em+1.0)*lightvalue.rgb,al)*fogfact+vec4(fogcolor,al)*(1.0-fogfact);\n";
 	//shader=shader+"gl_FragColor =vec4(color.rgb,1.0);\n";
 
@@ -8715,6 +8799,6 @@ if(GLGE.Material){
 closure_export();
 
 
-})(window["GLGE"]);
+})(GLGE);
 
 

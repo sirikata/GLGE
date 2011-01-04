@@ -32,10 +32,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * @author me@paulbrunt.co.uk
  */
  
-if(!GLGE){
-	var GLGE={};
+if(typeof(GLGE) == "undefined"){
+	/**
+	* @namespace Holds the functionality of the library
+	*/
+	GLGE = {};
 }
- 
+
 (function(GLGE){
  GLGE.ColladaDocuments=[];
  
@@ -135,8 +138,9 @@ GLGE.Collada.prototype.parseArray=function(node){
 * @param {DOM Element} node the value to parse
 * @param {string} relativeTo optional the path the url is relative to
 */
-GLGE.Collada.prototype.setDocument=function(url,relativeTo){
+GLGE.Collada.prototype.setDocument=function(url,relativeTo,cb){
 	this.url=url;
+    this.loadedCallback=cb;
 	//use # to determine the is of the asset to extract
 	if(url.indexOf("#")!=-1){
 		this.rootId=url.substr(url.indexOf("#")+1);
@@ -230,7 +234,14 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 	var block;
 	var set;
 	var rootNode=this.xml.getElementById(id);
-	var meshNode=rootNode.getElementsByTagName("mesh")[0];
+    var temp = rootNode.getElementsByTagName("mesh");
+    meshNode = null;
+    if (temp.length) {
+        meshNode = temp[0];
+    }
+    else {
+        GLGE.error("Collada.getMeshes returning [], id: " + id);
+    }
 	var meshes=[];
 	if(!meshNode) return meshes;
 	
@@ -1552,17 +1563,46 @@ GLGE.Collada.prototype.getNode=function(node,ref){
 * @private
 */
 GLGE.Collada.prototype.initVisualScene=function(){
+    var metadata=this.xml.getElementsByTagName("asset");
+    var up_axis="Z_UP";
+    if(metadata.length) {
+        var up_axis_node=metadata[0].getElementsByTagName("up_axis");
+        if (up_axis_node.length) {
+            up_axis_node=up_axis_node[0];
+            var cur_axis=up_axis_node.firstChild.nodeValue;
+            if (cur_axis.length)
+                up_axis=cur_axis;
+        }
+    }
+    var transformRoot=this;
+    if (up_axis[0]!="Y"&&up_axis[0]!="y") {
+        transformRoot = new GLGE.Group();
+        this.addChild(transformRoot);
+        if (up_axis[0]!="Z"&&up_axis[0]!="z") {
+            this.setRotMatrix(GLGE.Mat4([0, -1 , 0,  0,
+					                     1, 0, 0, 0,
+					                     0, 0, 1, 0,
+					                     0, 0, 0, 1]));
+          
+        }else {
+            this.setRotMatrix(GLGE.Mat4([1, 0 , 0,  0,
+					                     0, 0, 1, 0,
+					                     0, -1, 0, 0,
+					                     0, 0, 0, 1]));
+            
+        }
+    }
 	if(!this.rootId){
 		var scene=this.xml.getElementsByTagName("scene");
 		if(scene.length>0){
-			this.addGroup(this.getNode(scene[0]));
+			transformRoot.addGroup(this.getNode(scene[0]));
 		}else{
 			GLGE.error("Please indicate the asset to render in Collada Document"+this.url);
 		}
 	}else{
 		var root=this.xml.getElementById(this.rootId);
 		if(root){
-			this.addGroup(this.getNode(root));
+			transformRoot.addGroup(this.getNode(root));
 		}else{
 			GLGE.error("Asset "+this.rootId+" not found in document"+this.url);
 		}
@@ -1597,9 +1637,13 @@ GLGE.Collada.prototype.loaded=function(url,xml){
 	this.xml=xml;
 	if(xml.getElementsByTagName("authoring_tool").length>0) this.exceptions=exceptions[xml.getElementsByTagName("authoring_tool")[0].firstChild.nodeValue];
 	this.exceptions=this.getExceptions();
-	if(!this.exceptions) this.exceptions=exceptions.default;
+	if(!this.exceptions) this.exceptions=exceptions['default'];
+/// FIXME -- I used to have some try/catches going on here to avoid silent fails
 	this.initVisualScene();
 	this.getAnimations();
+    if (this.loadedCallback) {
+        this.loadedCallback(this);
+    }
 	this.fireEvent("loaded",{url:this.url});
 };
 
