@@ -4221,7 +4221,19 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 				jointCache[i].invBind=invBind;
 			}
 		}
-        gl.uniform4fv(GLGE.getUniformLocation(gl,program, "jointMat"),pgl.jointsCombined);
+        try {
+            gl.uniform4fv(GLGE.getUniformLocation(gl,program, "jointMat"),pgl.jointsCombined);
+        } catch (x) {
+            if (console&&console.log)
+                console.log("Unsupported: fast matrix upload");
+            for(var i=0;i<this.mesh.joints.length;i++){
+				var mat=pgl.jointsT[i];
+				GLGE.setUniform4(gl,"4f",GLGE.getUniformLocation(gl,program, "jointMat["+(i*3)+"]"), mat[0],mat[4],mat[8],mat[12]);
+				GLGE.setUniform4(gl,"4f",GLGE.getUniformLocation(gl,program, "jointMat["+(i*3+1)+"]"), mat[1],mat[5],mat[9],mat[13]);
+				GLGE.setUniform4(gl,"4f",GLGE.getUniformLocation(gl,program, "jointMat["+(i*3+2)+"]"), mat[2],mat[6],mat[10],mat[14]);
+                
+            }
+        }
 	}
 
 	if(this.material && renderType==GLGE.RENDER_DEFAULT && gl.scene.lastMaterial!=this.material) this.material.textureUniforms(gl,program,lights,this);
