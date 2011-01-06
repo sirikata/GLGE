@@ -1358,16 +1358,18 @@ GLGE.Collada.prototype.getInstanceController=function(node){
 		if(inputs[i].getAttribute("semantic")=="JOINT"){
 			var jointdata=this.getSource(inputs[i].getAttribute("source").substr(1));
 			if(jointdata.type=="IDREF_array"){
+                var all_items_incorrect=(jointdata.array.length!=0);
 				for(var k=0;k<jointdata.array.length;k=k+jointdata.stride){
                     var curNode=this.getNode(this.xml.getElementById(jointdata.array[k]),true);
 					var name=curNode.getName();
                     if (!this.xml.getElementById(jointdata.array[k])) {
-                        inverseBindMatrix=[bindShapeMatrix=GLGE.identMatrix()];
                         if (console && console.log)
                             console.log("Bone is not specified "+jointdata.array[k]);
-                    }
+                    }else all_items_incorrect=false;
 					joints.push(name);
 				}
+                if (all_items_incorrect)
+                    inverseBindMatrix=[bindShapeMatrix=GLGE.identMatrix()];
 			}else if(jointdata.type=="Name_array"){
 				var sidArray={};
 				var sid;
