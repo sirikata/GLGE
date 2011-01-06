@@ -8163,7 +8163,6 @@ GLGE.Material.prototype.getFragmentShader=function(lights){
 	
 		if(tangent){
 			shader=shader+"lightvec=tlightvec"+i+"*vec3(-1.0,-1.0,1.0);\n";  
-			shader=shader+"normal.z=(normal.z+1.0)/2.0;\n";  
 			shader=shader+"viewvec=teyevec*vec3(-1.0,-1.0,1.0);\n";  
 		}else{
 			shader=shader+"lightvec=lightvec"+i+";\n";  
@@ -8263,7 +8262,8 @@ GLGE.Material.prototype.getFragmentShader=function(lights){
 	shader=shader+"if(em>0.0){lightvalue=vec3(1.0,1.0,1.0);  fogfact=1.0;}\n";
 	shader=shader+"if (al<.25) discard;\n";    
 	shader=shader+"gl_FragColor =vec4(specvalue.rgb+color.rgb*(em+1.0)*lightvalue.rgb,al)*fogfact+vec4(fogcolor,al)*(1.0-fogfact);\n";
-//	shader=shader+"gl_FragColor=vec4(vec3(.5)+.5*normal,1);\n";
+	//shader=shader+"gl_FragColor=vec4(vec3(.5)+.5*normal,1);\n";
+	//shader=shader+"gl_FragColor=vec4(redness,0,0,1);\n";
 
 	shader=shader+"}\n";
 	return shader;
