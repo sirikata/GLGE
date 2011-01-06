@@ -8155,6 +8155,10 @@ GLGE.Material.prototype.getFragmentShader=function(lights){
 	shader=shader+"int cnt=0;";
 	shader=shader+"vec2 spotoffset=vec2(0.0,0.0);";
 	shader=shader+"float dp=0.0;";
+	shader=shader+"normal/=length(normal);\n"
+    //shader=shader+"vec3 ev=eyevec.xyz/length(eyevec.xyz);dp=dot(normal.rgb,eyevec.xyz); if (dp<0.0){(normal-=dp*ev); normal/=length(normal);}\n";
+		
+    
 	for(var i=0; i<lights.length;i++){
 	
 		if(tangent){
@@ -8165,8 +8169,6 @@ GLGE.Material.prototype.getFragmentShader=function(lights){
 			shader=shader+"lightvec=lightvec"+i+";\n";  
 			shader=shader+"viewvec=eyevec;\n"; 
 		}
-		shader=shader+"dp=dot(normal.rgb,eyevec.xyz); if (dp<0.0){(normal-=dp*eyevec/length(eyevec)); normal/=length(normal);}";
-		
 		if(lights[i].type==GLGE.L_POINT){ 
 			shader=shader+"dotN=max(dot(normal,normalize(-lightvec)),0.0);\n";       
 			shader=shader+"if(dotN>0.0){\n";
@@ -8261,7 +8263,7 @@ GLGE.Material.prototype.getFragmentShader=function(lights){
 	shader=shader+"if(em>0.0){lightvalue=vec3(1.0,1.0,1.0);  fogfact=1.0;}\n";
 	shader=shader+"if (al<.25) discard;\n";    
 	shader=shader+"gl_FragColor =vec4(specvalue.rgb+color.rgb*(em+1.0)*lightvalue.rgb,al)*fogfact+vec4(fogcolor,al)*(1.0-fogfact);\n";
-	//shader=shader+"gl_FragColor =vec4(color.rgb,1.0);\n";
+//	shader=shader+"gl_FragColor=vec4(vec3(.5)+.5*normal,1);\n";
 
 	shader=shader+"}\n";
 	return shader;
