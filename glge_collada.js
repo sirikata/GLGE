@@ -1363,6 +1363,8 @@ GLGE.Collada.prototype.getInstanceController=function(node){
 					var name=curNode.getName();
                     if (!this.xml.getElementById(jointdata.array[k])) {
                         inverseBindMatrix=[bindShapeMatrix=GLGE.identMatrix()];
+                        if (console && console.log)
+                            console.log("Bone is not specified "+jointdata.array[k]);
                     }
 					joints.push(name);
 				}
