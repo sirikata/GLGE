@@ -256,8 +256,10 @@ GLGE.SPECIAL_BLEND=function(value){
 
 
 GLGE.error=function(error){
-	alert(error);
-}
+    if (console&&console.log)
+        console.log("GLGE error: "+error);
+    //do not use a modal dialog to indicate this users can override GLGE.error if they desire
+};
 
 /**
 * @namespace Holds the global asset store
@@ -342,7 +344,7 @@ GLGE.getGLShader=function(gl,type,str){
 		gl.compileShader(shader);
 		if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
 			try {
-				alert(gl.getShaderInfoLog(shader));
+				GLGE.error(gl.getShaderInfoLog(shader));
 				return;
 			} catch (e) {
 				/* Firefox hack: Assume no error if there was no shader log. */
@@ -4179,7 +4181,9 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
                         var modelMatrix = this.bones[this.mesh.joints[i]].getModelMatrix();
                     }
                     catch (e) {
-                        GLGE.error("skeleton/joints problem")
+                        if (!this.bones.errorMessagePrinted)
+                            GLGE.error("skeleton/joints problem");
+                        this.bones.errorMessagePrinted=true;
                     }
 				}
 			}else{
@@ -4224,8 +4228,7 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
         try {
             gl.uniform4fv(GLGE.getUniformLocation(gl,program, "jointMat"),pgl.jointsCombined);
         } catch (x) {
-            if (console&&console.log)
-                console.log("Unsupported: fast matrix upload");
+            GLGE.error("Unsupported: fast matrix upload");
             for(var i=0;i<this.mesh.joints.length;i++){
 				var mat=pgl.jointsT[i];
 				GLGE.setUniform4(gl,"4f",GLGE.getUniformLocation(gl,program, "jointMat["+(i*3)+"]"), mat[0],mat[4],mat[8],mat[12]);

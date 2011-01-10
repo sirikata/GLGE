@@ -555,13 +555,11 @@ GLGE.Collada.prototype.createMaterialLayer=function(node,material,common,mapto,b
 		}else if (bvi[node.getAttribute("texcoord")]==0) {
 			layer.setMapinput(GLGE.UV1);
 		} else {
-            if (console&&console.log)
-                console.log("GLGE only supports 2 texture sets\n");
+            GLGE.error("GLGE only supports 2 texture sets\n");
 			layer.setMapinput(GLGE.UV1);
         }
 	}else {
-        if (console&&console.log)
-            console.log("Collada material does not specify texture coordinates, but it may have them: defaulting to set 0\n");
+        GLGE.error("Collada material does not specify texture coordinates, but it may have them: defaulting to set 0\n");
         
         layer.setMapinput(GLGE.UV1);
     }
@@ -1380,8 +1378,7 @@ GLGE.Collada.prototype.getInstanceController=function(node){
                     var curNode=this.getNode(this.xml.getElementById(jointdata.array[k]),true);
 					var name=curNode.getName();
                     if (!this.xml.getElementById(jointdata.array[k])) {
-                        if (console && console.log)
-                            console.log("Bone is not specified "+jointdata.array[k]);
+                        GLGE.error("Bone is not specified "+jointdata.array[k]);
                     }else all_items_incorrect=false;
 					joints.push(name);
 				}
