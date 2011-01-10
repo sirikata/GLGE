@@ -1373,20 +1373,21 @@ GLGE.Collada.prototype.getInstanceController=function(node){
 		if(inputs[i].getAttribute("semantic")=="JOINT"){
 			var jointdata=this.getSource(inputs[i].getAttribute("source").substr(1));
 			if(jointdata.type=="IDREF_array"){
-                var all_items_incorrect=(jointdata.array.length!=0);
+				var all_items_incorrect=(jointdata.array.length!=0);
 				for(var k=0;k<jointdata.array.length;k=k+jointdata.stride){
-                    var curNode=this.getNode(this.xml.getElementById(jointdata.array[k]),true);
+					var curNode=this.getNode(this.xml.getElementById(jointdata.array[k]),true);
 					var name=curNode.getName();
-                    if (!this.xml.getElementById(jointdata.array[k])) {
-                        GLGE.error("Bone is not specified "+jointdata.array[k]);
-                    }else all_items_incorrect=false;
+					if (!this.xml.getElementById(jointdata.array[k])) {
+						GLGE.error("Bone is not specified "+jointdata.array[k]);
+						inverseBindMatrix=[bindShapeMatrix=GLGE.identMatrix()];
+					}else all_items_incorrect=false;
 					joints.push(name);
 				}
-                if (all_items_incorrect)
-                    inverseBindMatrix=[bindShapeMatrix=GLGE.identMatrix()];
+				if (all_items_incorrect)
+					inverseBindMatrix=[bindShapeMatrix=GLGE.identMatrix()];
 			}else if(jointdata.type=="Name_array"){
 				var sidArray={};
-				var sid;
+				var sid,name;
 				//is this right controller with no skeleton set, export bug??
 				if(skeletons.length==0){
 					var elements=this.xml.getElementsByTagName("node");
@@ -1394,6 +1395,10 @@ GLGE.Collada.prototype.getInstanceController=function(node){
 						sid=elements[k].getAttribute("sid");
 						if(sid){
 							sidArray[sid]=elements[k];
+						}
+						name=elements[k].getAttribute("name");
+						if(name && !sidArray[name]){
+							sidArray[name]=elements[k];
 						}
 					}
 				}else{
@@ -1406,6 +1411,10 @@ GLGE.Collada.prototype.getInstanceController=function(node){
 							sid=elements[k].getAttribute("sid");
 							if(sid){
 								sidArray[sid]=elements[k];
+							}
+							name=elements[k].getAttribute("name");
+							if(name && !sidArray[name]){
+								sidArray[name]=elements[k];
 							}
 						}
 					}
@@ -1506,9 +1515,9 @@ GLGE.Collada.prototype.getInstanceController=function(node){
 	var skeletonData={vertexJoints:outputData["JOINT"],vertexWeight:outputData["WEIGHT"],joints:joints,inverseBindMatrix:inverseBindMatrix,count:maxJoints};
 
 	var meshes=this.getMeshes(controller.getElementsByTagName("skin")[0].getAttribute("source").substr(1),skeletonData);
-    this.setMaterialOntoMesh(meshes,node);
+	this.setMaterialOntoMesh(meshes,node);
 	return node.GLGEObj;
-}
+};
 
 /**
 * Creates a new group and parses it's children
