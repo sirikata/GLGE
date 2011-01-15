@@ -4374,33 +4374,38 @@ GLGE.Object.prototype.GLRender=function(gl,renderType,pickindex,multiMaterial){
 					drawType=gl.TRIANGLES;
 					break;
 			}
+
 			//render the object
 			this.GLUniforms(gl,renderType,pickindex);
-            switch (this.mesh.windingOrder) {
-            case GLGE.Mesh.WINDING_ORDER_UNKNOWN:
-                gl.disable(gl.CULL_FACE);
-                break;
-            case GLGE.Mesh.WINDING_ORDER_COUNTER:
-                gl.cullFace(gl.FRONT);
-            default:
-                break;
-            }
+			if (this.mesh.windingOrder==GLGE.Mesh.WINDING_ORDER_COUNTER) {
+				gl.cullFace(gl.FRONT);
+			}
 			if(this.mesh.GLfaces){
 				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.mesh.GLfaces);
 				gl.drawElements(drawType, this.mesh.GLfaces.numItems, gl.UNSIGNED_SHORT, 0);
 			}else{
 				gl.drawArrays(drawType, 0, this.mesh.positions.length/3);
 			}
-            switch (this.mesh.windingOrder) {
-            case GLGE.Mesh.WINDING_ORDER_UNKNOWN:
-                if (gl.scene.renderer.cullFaces)
-                    gl.enable(gl.CULL_FACE);    
-                break;
-            case GLGE.Mesh.WINDING_ORDER_COUNTER:
-                gl.cullFace(gl.BACK);
-            default:
-                break;
-            }
+
+			switch (this.mesh.windingOrder) {
+			case GLGE.Mesh.WINDING_ORDER_UNKNOWN:
+			case GLGE.Mesh.WINDING_ORDER_CLOCKWISE:
+				gl.cullFace(gl.BACK);
+				break;
+			case GLGE.Mesh.WINDING_ORDER_COUNTER:
+				gl.cullFace(gl.FRONT);
+			default:
+				break;
+			}
+
+			if(this.mesh.GLfaces){
+				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.mesh.GLfaces);
+				gl.drawElements(drawType, this.mesh.GLfaces.numItems, gl.UNSIGNED_SHORT, 0);
+			}else{
+				gl.drawArrays(drawType, 0, this.mesh.positions.length/3);
+			}
+
+
 			var matrix=this.matrix;
 			var caches=this.caches;
 			for(var n=0;n<this.instances.length;n++){
@@ -4408,19 +4413,61 @@ GLGE.Object.prototype.GLRender=function(gl,renderType,pickindex,multiMaterial){
 				if(this.skeleton) this.skeleton.setStaticMatrix(this.matrix);
 				this.caches=this.instances[n].caches;
 				this.GLUniforms(gl,renderType,pickindex);
+				switch (this.mesh.windingOrder) {
+				case GLGE.Mesh.WINDING_ORDER_UNKNOWN:
+				case GLGE.Mesh.WINDING_ORDER_CLOCKWISE:
+				gl.cullFace(gl.FRONT);
+					break;
+				case GLGE.Mesh.WINDING_ORDER_COUNTER:
+					gl.cullFace(gl.BACK);
+				default:
+					break;
+				}
+
 				if(this.mesh.GLfaces){
 					gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.mesh.GLfaces);
 					gl.drawElements(drawType, this.mesh.GLfaces.numItems, gl.UNSIGNED_SHORT, 0);
 				}else{
 					gl.drawArrays(drawType, 0, this.mesh.positions.length/3);
 				}
+				switch (this.mesh.windingOrder) {
+				case GLGE.Mesh.WINDING_ORDER_UNKNOWN:
+				case GLGE.Mesh.WINDING_ORDER_CLOCKWISE:
+					gl.cullFace(gl.BACK);
+					break;
+				case GLGE.Mesh.WINDING_ORDER_COUNTER:
+					gl.cullFace(gl.FRONT);
+				default:
+					break;
+				}
+				if(this.mesh.GLfaces){
+					gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.mesh.GLfaces);
+					gl.drawElements(drawType, this.mesh.GLfaces.numItems, gl.UNSIGNED_SHORT, 0);
+				}else{
+					gl.drawArrays(drawType, 0, this.mesh.positions.length/3);
+				}
+
+			}
+			if (this.mesh.windingOrder== GLGE.Mesh.WINDING_ORDER_COUNTER) {
+				gl.cullFace(gl.BACK);				
 			}
 
 			this.matrix=matrix;
 			this.caches=caches;
 		}
+		switch (this.mesh.windingOrder) {
+		case GLGE.Mesh.WINDING_ORDER_UNKNOWN:
+		case GLGE.Mesh.WINDING_ORDER_CLOCKWISE:
+			gl.cullFace(gl.FRONT);
+			break;
+		case GLGE.Mesh.WINDING_ORDER_COUNTER:
+			gl.cullFace(gl.BACK);
+		default:
+			break;
+		}
+		
 	}
-}
+};
 
 
 
