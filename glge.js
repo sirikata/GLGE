@@ -3120,7 +3120,7 @@ GLGE.Text.prototype.updateCanvas=function(gl){
 * Renders the text to the render buffer
 * @private
 */
-GLGE.Text.prototype.GLRender=function(gl,renderType,pickindex){
+GLGE.Text.prototype.GLRender=function(gl,renderType,pickindex,normalScale){
 	if(!this.gl){
 		this.GLInit(gl);
 	}
@@ -3779,9 +3779,10 @@ GLGE.Object.prototype.GLGenerateShader=function(gl){
 		if(this.mesh.buffers[i].name=="joints1") joints1=this.mesh.buffers[i];
 		if(this.mesh.buffers[i].name=="joints2") joints2=this.mesh.buffers[i];
 	}
+    vertexStr.push("uniform float normalScale;\n");//can scale the normal...most notably by -1 for backface rendering
 	vertexStr.push("uniform mat4 worldView;\n");
 	vertexStr.push("uniform mat4 projection;\n");  
-	vertexStr.push("uniform mat4 view;\n");  
+	vertexStr.push("uniform mat4 view;\n");
 	vertexStr.push("uniform mat4 worldInverseTranspose;\n");
 	vertexStr.push("uniform mat4 envMat;\n");
 
@@ -3899,7 +3900,7 @@ GLGE.Object.prototype.GLGenerateShader=function(gl){
 	vertexStr.push("eyevec = -pos.xyz;\n");
 	
 	vertexStr.push("t = normalize(tang);");
-	vertexStr.push("n = normalize(norm.rgb);");
+	vertexStr.push("n = normalize(norm.rgb*normalScale);");
 	vertexStr.push("b = normalize(cross(n,t));");
 	if(tangent){
 		vertexStr.push("teyevec.x = dot(eyevec, t);");
@@ -3977,7 +3978,7 @@ GLGE.Object.prototype.createShaders=function(multimaterial){
 * Sets the shader program uniforms ready for rendering
 * @private
 */
-GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
+GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex,normalScale){
 	var program;
 	switch(renderType){
 		case GLGE.RENDER_DEFAULT:
@@ -4005,7 +4006,6 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 	var pgl=program.glarrays;
 	var scene=gl.scene;
 	var camera=scene.camera;
-
 	if(pc.far!=camera.far){
 		GLGE.setUniform(gl,"1i",GLGE.getUniformLocation(gl,program, "far"), camera.far);
 		pc.far=camera.far;
@@ -4083,13 +4083,15 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 			GLGE.setUniformMatrix(gl,"Matrix4fv",icUniform, false, pgl.envMatT);
 		}
 		//normalising matrix
+        var normalMatrix;
 		if(!this.caches.normalMatrix){
-			var normalMatrix = GLGE.inverseMat4(mvMatrix);
+			normalMatrix = GLGE.inverseMat4(mvMatrix);
 			this.caches.normalMatrix = normalMatrix;
 		}
 		normalMatrix=this.caches.normalMatrix;
 		var nUniform = GLGE.getUniformLocation(gl,program, "worldInverseTranspose");
-		
+		var nScale = GLGE.getUniformLocation(gl,program, "normalScale");
+        GLGE.setUniform(gl,"1f",nScale,normalScale);
 		if(!pgl.normalMatrix) pgl.normalMatrix=new Float32Array(normalMatrix);
 			else GLGE.mat4gl(normalMatrix,pgl.normalMatrix);	
 		GLGE.setUniformMatrix(gl,"Matrix4fv",nUniform, false, pgl.normalMatrix);
@@ -4246,7 +4248,7 @@ GLGE.Object.prototype.GLUniforms=function(gl,renderType,pickindex){
 * Renders the object to the screen
 * @private
 */
-GLGE.Object.prototype.GLRender=function(gl,renderType,pickindex,multiMaterial){
+GLGE.Object.prototype.GLRender=function(gl,renderType,pickindex,normalScale,multiMaterial){
 	if(!gl) return;
 	if(!this.gl) this.GLInit(gl);
 	
@@ -4375,7 +4377,7 @@ GLGE.Object.prototype.GLRender=function(gl,renderType,pickindex,multiMaterial){
 					break;
 			}
 			//render the object
-			this.GLUniforms(gl,renderType,pickindex);
+			this.GLUniforms(gl,renderType,pickindex,normalScale);
 			if(this.mesh.GLfaces){
 				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.mesh.GLfaces);
 				gl.drawElements(drawType, this.mesh.GLfaces.numItems, gl.UNSIGNED_SHORT, 0);
@@ -4389,7 +4391,7 @@ GLGE.Object.prototype.GLRender=function(gl,renderType,pickindex,multiMaterial){
 				this.matrix=this.instances[n].getModelMatrix();
 				if(this.skeleton) this.skeleton.setStaticMatrix(this.matrix);
 				this.caches=this.instances[n].caches;
-				this.GLUniforms(gl,renderType,pickindex);
+				this.GLUniforms(gl,renderType,pickindex,normalSCale);
 				if(this.mesh.GLfaces){
 					gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.mesh.GLfaces);
 					gl.drawElements(drawType, this.mesh.GLfaces.numItems, gl.UNSIGNED_SHORT, 0);
@@ -5801,7 +5803,6 @@ GLGE.Scene.prototype.stateSort=function(a,b){
 GLGE.Scene.prototype.render=function(gl){
 	//if look at is set then look
 	if(this.camera.lookAt) this.camera.Lookat(this.camera.lookAt);	
-	
 	this.animate();
 	
 	var lights=gl.lights;
@@ -5842,10 +5843,12 @@ GLGE.Scene.prototype.render=function(gl){
 			}
 			this.camera.setProjectionMatrix(lights[i].s_cache.pmatrix);
 			this.camera.matrix=lights[i].s_cache.imvmatrix;
+            if (this.cullFaces) this.gl.disable(this.gl.CULL_FACE);
 			//draw shadows
 			for(var n=0; n<renderObjects.length;n++){
-				renderObjects[n].object.GLRender(gl, GLGE.RENDER_SHADOW,n,renderObjects[n].multiMaterial);
+				renderObjects[n].object.GLRender(gl, GLGE.RENDER_SHADOW,n,undefined,renderObjects[n].multiMaterial);
 			}
+            if (this.cullFaces) this.gl.ensable(this.gl.CULL_FACE);
 			gl.flush();
 			this.camera.matrix=cameraMatrix;
 			this.camera.setProjectionMatrix(cameraPMatrix);
@@ -5860,34 +5863,37 @@ GLGE.Scene.prototype.render=function(gl){
 	//first off render the passes
 	var cameraMatrix=this.camera.matrix;
 	var cameraPMatrix=this.camera.getProjectionMatrix();
-	this.allowPasses=false;
-	while(this.passes.length>0){
-		var pass=this.passes.pop();
-		gl.bindFramebuffer(gl.FRAMEBUFFER, pass.frameBuffer);
-		this.camera.matrix=pass.cameraMatrix;
-		this.camera.setProjectionMatrix(pass.projectionMatrix);
-		this.renderPass(gl,renderObjects,0,0,pass.width,pass.height,GLGE.RENDER_DEFAULT,pass.self);
-	}
-	
-	this.camera.matrix=cameraMatrix;
-	this.camera.setProjectionMatrix(cameraPMatrix);
-	
 
-	gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
-	this.renderPass(gl,renderObjects,this.renderer.getViewportOffsetX(),this.renderer.getViewportOffsetY(),this.renderer.getViewportWidth(),this.renderer.getViewportHeight());	
-	
-	this.applyFilter(gl,renderObjects,null);
+    for (var backside=0;backside<2;++backside){
+	    this.allowPasses=false;
+	    while(this.passes.length>0){
+		    var pass=this.passes.pop();
+		    gl.bindFramebuffer(gl.FRAMEBUFFER, pass.frameBuffer);
+		    this.camera.matrix=pass.cameraMatrix;
+		    this.camera.setProjectionMatrix(pass.projectionMatrix);
+
+		    this.renderPass(gl,renderObjects,backside?-1.0:1.0,0,0,pass.width,pass.height,GLGE.RENDER_DEFAULT,pass.self);
+	    }
+	    
+	    this.camera.matrix=cameraMatrix;
+	    this.camera.setProjectionMatrix(cameraPMatrix);
+	    
+        
+	    gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+	    this.renderPass(gl,renderObjects,backside?-1.0:1.0,this.renderer.getViewportOffsetX(),this.renderer.getViewportOffsetY(),this.renderer.getViewportWidth(),this.renderer.getViewportHeight());	
+	    this.applyFilter(gl,renderObjects,null);
+    }
 	
 	this.allowPasses=true;
 
-}
+};
 /**
 * gets the passes needed to render this scene
 * @private
 */
 GLGE.Scene.prototype.getPasses=function(gl,renderObjects){
 	for(var i=0; i<renderObjects.length;i++){
-		renderObjects[i].object.GLRender(gl,GLGE.RENDER_NULL,0,renderObjects[i].multiMaterial);
+		renderObjects[i].object.GLRender(gl,GLGE.RENDER_NULL,0,undefined,renderObjects[i].multiMaterial);
 	}
 }
 
@@ -5895,9 +5901,9 @@ GLGE.Scene.prototype.getPasses=function(gl,renderObjects){
 * renders the scene
 * @private
 */
-GLGE.Scene.prototype.renderPass=function(gl,renderObjects,offsetx,offsety,width,height,type,self){
+GLGE.Scene.prototype.renderPass=function(gl,renderObjects,normalScale,offsetx,offsety,width,height,type,self){
 	gl.clearDepth(1.0);
-	gl.depthFunc(gl.LEQUAL);
+	gl.depthFunc(gl.LESS);
 	gl.viewport(offsetx,offsety,width,height);
 	
 	gl.clearColor(this.backgroundColor.r, this.backgroundColor.g, this.backgroundColor.b, this.backgroundColor.a);
@@ -5909,33 +5915,42 @@ GLGE.Scene.prototype.renderPass=function(gl,renderObjects,offsetx,offsety,width,
 	}else{
 		gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
 	}
+    for (var backside=0;backside<2;++backside){
+       
+        if (backside!=0){
+            gl.cullFace(gl.FRONT);
+        }else {
+            gl.cullFace(gl.BACK);
+        }
+
 	if(!type) type=GLGE.RENDER_DEFAULT;
 	
 	var transObjects=[];
 	gl.disable(gl.BLEND);
 	for(var i=0; i<renderObjects.length;i++){
-		if(!renderObjects[i].object.zTrans && renderObjects[i]!=self) renderObjects[i].object.GLRender(gl,type,0,renderObjects[i].multiMaterial);
-			else if(renderObjects[i]!=self) transObjects.push(renderObjects[i])
+		if(!renderObjects[i].object.zTrans && renderObjects[i]!=self) renderObjects[i].object.GLRender(gl,type,0,normalScale,renderObjects[i].multiMaterial);
+			else if(renderObjects[i]!=self) transObjects.push(renderObjects[i]);
 	}
 
 	gl.enable(gl.BLEND);
 	transObjects=this.zSort(gl,transObjects);
 	for(var i=0; i<transObjects.length;i++){
-		if(renderObjects[i]!=self) transObjects[i].object.GLRender(gl, type,0,transObjects[i].multiMaterial);
+		if(renderObjects[i]!=self) transObjects[i].object.GLRender(gl, type,0,normalScale,transObjects[i].multiMaterial);
 	}
+    }
 }
 
 GLGE.Scene.prototype.applyFilter=function(gl,renderObject,framebuffer){
 	if(this.filter && this.filter.renderDepth){	
 		gl.clearDepth(1.0);
-		gl.depthFunc(gl.LEQUAL);
+		gl.depthFunc(gl.LESS);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.filter.getDepthBuffer(gl));
 		this.renderPass(gl,renderObject,0,0,this.filter.getDepthBufferWidth(), this.filter.getDepthBufferHeight(),GLGE.RENDER_SHADOW);	
 	}
 	
 	if(this.filter && this.filter.renderNormal){	
 		gl.clearDepth(1.0);
-		gl.depthFunc(gl.LEQUAL);
+		gl.depthFunc(gl.LESS);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.filter.getNormalBuffer(gl));
 		this.renderPass(gl,renderObject,0,0,this.filter.getNormalBufferWidth(),this.filter.getNormalBufferHeight(),GLGE.RENDER_NORMAL);	
 	}
@@ -6010,7 +6025,7 @@ GLGE.Scene.prototype.ray=function(origin,direction){
 		gl.scene=this;
 		var objects=this.getObjects();
 		for(var i=0; i<objects.length;i++){
-			if(objects[i].pickable) objects[i].GLRender(gl,GLGE.RENDER_PICK,i+1);
+			if(objects[i].pickable) objects[i].GLRender(gl,GLGE.RENDER_PICK,i+1,undefined);
 		}
 		gl.flush();
 
@@ -6160,7 +6175,7 @@ GLGE.Renderer=function(canvas,error){
 	this.gl.enable(this.gl.DEPTH_TEST);
     
     
-	this.gl.depthFunc(this.gl.LEQUAL);
+	this.gl.depthFunc(this.gl.LESS);
 	this.gl.blendFuncSeparate(this.gl.SRC_ALPHA,this.gl.ONE_MINUS_SRC_ALPHA,this.gl.ZERO,this.gl.ONE);	
 };
 GLGE.augment(GLGE.QuickNotation,GLGE.Renderer);
