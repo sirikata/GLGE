@@ -133,6 +133,31 @@ GLGE.Collada.prototype.parseArray=function(node){
 	}
 	return output;
 };
+
+GLGE.Collada.prototype.isSketchupFile = function() {
+    var asset=this.xml.getElementsByTagName("asset");
+    if (!asset || asset.length==0)
+        return false;
+    for (var i=0;i<asset.length;++i){
+        var contributor=asset[i].getElementsByTagName("contributor");
+        if (!contributor || contributor.length==0)
+            return false;
+        for (var j=0;j<contributor.length;++j) {
+            var authoring=contributor[j].getElementsByTagName("authoring_tool");
+            if (!authoring || authoring.length==0)
+                return false;
+            for (var k=0;k<authoring.length;++k) {    
+                var tool=authoring[k].firstChild.nodeValue;
+                if (tool.indexOf("Google")==0) {
+                    console.log("Sketchy file");
+                    return true;
+                }
+            }
+        }        
+    }
+    return false;
+};
+
 /**
 * loads an collada file from a given url
 * @param {DOM Element} node the value to parse
@@ -389,7 +414,7 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 		//create faces array
 		faces=[];
 		//create mesh
-        var windingOrder=GLGE.Mesh.WINDING_ORDER_UNKNOWN;
+        var windingOrder=GLGE.Mesh.WINDING_ORDER_CLOCKWISE;
 		if(!outputData.NORMAL){
 			outputData.NORMAL=[];
 			for(n=0;n<outputData.POSITION.length;n=n+9){
@@ -437,6 +462,8 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
             }
         }
 
+        if (!this.isSketchupFile())
+            windingOrder=GLGE.Mesh.WINDING_ORDER_UNKNOWN;
 		function min(a,b){
             return (a>b?b:a);
         }
