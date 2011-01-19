@@ -149,7 +149,6 @@ GLGE.Collada.prototype.isSketchupFile = function() {
             for (var k=0;k<authoring.length;++k) {    
                 var tool=authoring[k].firstChild.nodeValue;
                 if (tool.indexOf("Google")==0) {
-                    console.log("Sketchy file");
                     return true;
                 }
             }
@@ -416,6 +415,7 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 		//create mesh
         var windingOrder=GLGE.Mesh.WINDING_ORDER_CLOCKWISE;
 		if(!outputData.NORMAL){
+            console.log("Autogenerating normals, do not know facings");
 			outputData.NORMAL=[];
 			for(n=0;n<outputData.POSITION.length;n=n+9){
 				var vec1=GLGE.subVec3([outputData.POSITION[n],outputData.POSITION[n+1],outputData.POSITION[n+2]],[outputData.POSITION[n+3],outputData.POSITION[n+4],outputData.POSITION[n+5]]);
@@ -430,7 +430,6 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 				outputData.NORMAL.push(vec3[0]);
 				outputData.NORMAL.push(vec3[1]);
 				outputData.NORMAL.push(vec3[2]);
-                console.log("Autogenerating normals, do not knnow facings");
 			}
             var len=outputData.POSITION.length/3;
          	for(n=0;n<len;n++) faces.push(n);   
