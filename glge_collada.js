@@ -57,6 +57,7 @@ GLGE.Collada=function(){
 };
 GLGE.augment(GLGE.Group,GLGE.Collada);
 GLGE.Collada.prototype.type=GLGE.G_NODE;
+GLGE.Collada.prototype.useLights=false;
 /**
 * Gets the absolute path given an import path and the path it's relative to
 * @param {string} path the path to get the absolute path for
@@ -156,6 +157,22 @@ GLGE.Collada.prototype.isSketchupFile = function() {
     }
     return false;
 };
+
+/**
+* set flag indicating if lights should be extracted from the collada document
+* @param {boolean} node the value to parse
+*/
+GLGE.Collada.prototype.setUseLights=function(uselights){
+	this.useLights=uselights;
+	return this;
+}
+/**
+* get flag indicating if lights should be extracted from the collada document
+* @returns {boolean} node the value to parse
+*/
+GLGE.Collada.prototype.getUseLights=function(uselights){
+	return this.useLights;
+}
 
 /**
 * loads an collada file from a given url
@@ -259,22 +276,21 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 	var block;
 	var set;
 	var rootNode=this.xml.getElementById(id);
-    if (!rootNode) {
-        GLGE.error("Collada.getMeshes returning [], id: " + id);
-        return [];        
-    }
-    var temp = rootNode.getElementsByTagName("mesh");
-    if (!temp){
-        GLGE.error("Collada.getMeshes returning [], id: " + id);
-        return [];        
-    }
-    meshNode = null;
-    if (temp.length) {
-        meshNode = temp[0];
-    }
-    else {
-        GLGE.error("Collada.getMeshes returning [], id: " + id);
-    }
+	if (!rootNode) {
+		GLGE.error("Collada.getMeshes returning [], id: " + id);
+		return [];        
+	}
+	var temp = rootNode.getElementsByTagName("mesh");
+	if (!temp){
+		GLGE.error("Collada.getMeshes returning [], id: " + id);
+		return [];        
+	}
+	meshNode = null;
+	if (temp.length) {
+		meshNode = temp[0];
+	}else {
+		GLGE.error("Collada.getMeshes returning [], id: " + id);
+	}
 	var meshes=[];
 	if(!meshNode) return meshes;
 	
@@ -430,6 +446,7 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 				outputData.NORMAL.push(vec3[0]);
 				outputData.NORMAL.push(vec3[1]);
 				outputData.NORMAL.push(vec3[2]);
+                console.log("Autogenerating normals, do not knnow facings");
 			}
             var len=outputData.POSITION.length/3;
          	for(n=0;n<len;n++) faces.push(n);   
@@ -1581,6 +1598,44 @@ GLGE.Collada.prototype.getInstanceController=function(node){
 	this.setMaterialOntoMesh(meshes,node);
 	return node.GLGEObj;
 };
+/**
+* creates a GLGE lights from a given instance light
+* @param {node} node the element to parse
+* @private
+*/
+GLGE.Collada.prototype.getInstanceLight=function(node){
+	var type=node.getElementsByTagName("technique_common")[0].getElementsByTagName("*")[0];
+	var light=new GLGE.Light;
+	var color=type.getElementsByTagName("color");
+	if(color.length>0){
+		var colors=color[0].firstChild.nodeValue.split(" ");
+		var c="rgb("+((colors[0]*255)|0)+","+((colors[1]*255)|0)+","+((colors[2]*255)|0)+")";
+		light.setColor(c);
+	}
+	switch(type.tagName){
+		case "point":
+		case "spot":
+			light.setType(GLGE.L_POINT);
+			var ca=type.getElementsByTagName("constant_attenuation");
+			if(ca.length>0) light.setAttenuationConstant(parseFloat(ca[0].firstChild.nodeValue));
+			var la=type.getElementsByTagName("linear_attenuation");
+			if(la.length>0) light.setAttenuationLinear(parseFloat(la[0].firstChild.nodeValue));
+			var qa=type.getElementsByTagName("quadratic_attenuation");
+			if(qa.length>0) light.setAttenuationQuadratic(parseFloat(qa[0].firstChild.nodeValue));
+		case "spot":
+			light.setType(GLGE.L_SPOT);
+			var se=type.getElementsByTagName("falloff_exponent");
+			if(se.length>0) {
+				var exp=parseFloat(se[0].firstChild.nodeValue);
+				if(exp<1.0001) exp*=128; //if less then one then assume they are using 0-1 so convert to 0-128
+				light.setSpotExponent(exp);
+			}
+			var fa=type.getElementsByTagName("falloff_angle");
+			if(fa.length>0) light.setSpotCosCutOff(Math.cos(parseFloat(fa[0].firstChild.nodeValue)/180*Math.PI));
+			break;
+	}
+	return light;
+}
 
 /**
 * Creates a new group and parses it's children
@@ -1629,6 +1684,9 @@ GLGE.Collada.prototype.getNode=function(node,ref){
 				break;
 			case "instance_controller":
 				newGroup.addObject(this.getInstanceController(child));
+				break;
+			case "instance_light":
+				if(this.useLights) newGroup.addLight(this.getInstanceLight(this.xml.getElementById(child.getAttribute("url").substr(1))));
 				break;
 			case "matrix":
 				matrix=this.parseArray(child);
