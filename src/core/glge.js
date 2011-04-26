@@ -337,6 +337,7 @@ GLGE.Assets.get=function(uid){
 * @private
 */
 GLGE.fastHash=function(str){
+    return str;
 	var s1=0;var s2=0;var s3=0;var s4=0;var s5=0;var s6=0;
 	var c1=0;var c2=0;var c3=0;var c4=0;var c5=0;var c6=0;
 	var i=0;
