@@ -529,12 +529,15 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 				skeletonData.count=8;
 			}
             for (var index=0;index<nummesh;++index) {			
-			    trimesh[index].setJoints(skeletonData.joints);
-			    trimesh[index].setInvBindMatrix(skeletonData.inverseBindMatrix);
-                var maxval=min(MAXVERTS*(index+1)*skeletonData.count,vertexJoints.length);
-                var minval=MAXVERTS*index*skeletonData.count;
-			    trimesh[index].setVertexJoints(vertexJoints.slice(minval,maxval),skeletonData.count);
-			    trimesh[index].setVertexWeights(vertexWeights.slice(minval,maxval),skeletonData.count);
+                if (this.xml.getElementsByTagName("animation").length!=0) {
+                    
+			        trimesh[index].setJoints(skeletonData.joints);
+			        trimesh[index].setInvBindMatrix(skeletonData.inverseBindMatrix);
+                    var maxval=min(MAXVERTS*(index+1)*skeletonData.count,vertexJoints.length);
+                    var minval=MAXVERTS*index*skeletonData.count;
+			        trimesh[index].setVertexJoints(vertexJoints.slice(minval,maxval),skeletonData.count);
+			        trimesh[index].setVertexWeights(vertexWeights.slice(minval,maxval),skeletonData.count);
+                }
             }
 		}
         for (var index=0;index<nummesh;++index) {		
