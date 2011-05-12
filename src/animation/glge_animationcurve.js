@@ -81,7 +81,7 @@ GLGE.AnimationCurve.prototype.coord=function(x,y){
 GLGE.AnimationCurve.prototype.setChannel=function(channel){
 	this.channel=channel
 }
-GLGE.AnimationCurve.prototype.getValue=function(frame){
+GLGE.AnimationCurve.prototype.getValue=function(frame, prevValue, rotation){
 	if(this.keyFrames.length==0) return 0;
 	
 	if(this.caches[frame]) return this.caches[frame];
@@ -89,11 +89,8 @@ GLGE.AnimationCurve.prototype.getValue=function(frame){
 	var endKey;
 	var preStartKey;
 	var preEndKey;
-	if(frame<this.keyFrames[0].x) return this.keyFrames[0].y;
+	if(frame<this.keyFrames[0].x)  frame=0;
 	for(var i=0; i<this.keyFrames.length;i++){
-		if(this.keyFrames[i].x==frame){
-			return this.keyFrames[i].y;
-		}
 		if(this.keyFrames[i].x<=frame && (startKey==undefined || this.keyFrames[i].x>this.keyFrames[startKey].x)){
 			preStartKey=startKey;
 			startKey=i;
@@ -137,11 +134,31 @@ GLGE.AnimationCurve.prototype.getValue=function(frame){
 		return this.atX(frame,C1,C2,C3,C4).y;
 	}
 	if(this.keyFrames[startKey] instanceof GLGE.LinearPoint && this.keyFrames[endKey] instanceof GLGE.LinearPoint){
-		var value=(frame-this.keyFrames[startKey].x)*(this.keyFrames[endKey].y-this.keyFrames[startKey].y)/(this.keyFrames[endKey].x-this.keyFrames[startKey].x)+this.keyFrames[startKey].y;
+		var endY=this.keyFrames[endKey].y;
+		var startY=this.keyFrames[startKey].y;
+		if (rotation) {
+			if (!prevValue) {
+				prevValue=this.keyFrames[1%this.keyFrames.length].y;
+			}
+			function getCloser(a,b,del) {
+				if (Math.abs((a+del)-b)<Math.abs(a-b)) {
+					return a+del;
+				}
+				if (Math.abs((a-del)-b)<Math.abs(a-b)) {
+					return a-del;
+				}
+				return a;
+			}
+			endY=getCloser(endY,prevValue,360);
+			endY=getCloser(endY,prevValue,180);
+			startY=getCloser(startY,prevValue,360);
+			startY=getCloser(startY,prevValue,180);
+		}
+		var value=(frame-this.keyFrames[startKey].x)*(endY-startY)/(this.keyFrames[endKey].x-this.keyFrames[startKey].x)+startY;
 		return value;
 	}
 	if(this.keyFrames[startKey] instanceof GLGE.StepPoint){
-		return this.keyFrames[startKey].y
+		return this.keyFrames[startKey].y;
 	}
 	if(!this.keyFrames.preStartKey) this.keyFrames.preStartKey=this.keyFrames[0].y;
 	
