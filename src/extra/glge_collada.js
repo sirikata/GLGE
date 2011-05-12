@@ -1244,6 +1244,7 @@ GLGE.Collada.prototype.getAnimationVector=function(channels){
 	animVector.addAnimationCurve(scaleycurve);
 	animVector.addAnimationCurve(scalezcurve);
 	var lastQuat=null;
+	var transformsPrevValue=[];
 	for(var frame=0; frame<maxFrame;frame++){
 		var matrix=GLGE.identMatrix();
 		for(var i=0;i<transforms.length;i++){
@@ -1275,7 +1276,7 @@ GLGE.Collada.prototype.getAnimationVector=function(channels){
 						(transforms[i].animations[0] ? transforms[i].animations[0].getValue(frame) : transforms[i].data[0]),
 						(transforms[i].animations[1] ? transforms[i].animations[1].getValue(frame) : transforms[i].data[1]),
 						(transforms[i].animations[2] ? transforms[i].animations[2].getValue(frame) : transforms[i].data[2]),
-						(transforms[i].animations[3] ? transforms[i].animations[3].getValue(frame) : transforms[i].data[3])
+						(transforms[i].animations[3] ? (transformsPrevValue[i]=transforms[i].animations[3].getValue(frame,transformsPrevValue[i],true)) : transforms[i].data[3])
 					];
 					matrix=GLGE.mulMat4(matrix,GLGE.angleAxis(rotate_array[3]*0.017453278,[ rotate_array[0], rotate_array[1], rotate_array[2]]));
 					break;
