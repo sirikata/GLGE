@@ -353,7 +353,8 @@ GLGE.Assets.get=function(uid){
 * @function hashing function
 * @private
 */
-GLGE.DJBHash=function(str){
+    GLGE.DJBHash=function(str){
+      return str;//not cryptographically secure, random models can cause incorrect shaders to be picked from time to time (observed)
       var hash = 5381;
 
       for(var i = 0; i < str.length; i++){
@@ -361,6 +362,23 @@ GLGE.DJBHash=function(str){
       }
 
       return hash;
+}
+GLGE.fastHash=function(str){
+    return str;
+	var s1=0;var s2=0;var s3=0;var s4=0;var s5=0;var s6=0;
+	var c1=0;var c2=0;var c3=0;var c4=0;var c5=0;var c6=0;
+	var i=0;
+	var length=str.length;
+	str+="000000";
+	while(i<length){
+		c1=str.charCodeAt(i++);c2=str.charCodeAt(i++);c3=str.charCodeAt(i++);
+		c4=str.charCodeAt(i++);c5=str.charCodeAt(i++);c6=str.charCodeAt(i++);
+		s1=(s5+c1+c2)%255;s2=(s6+c2+c3)%255;s3=(s1+c3+c4)%255;
+		s4=(s2+c4+c5)%255;s5=(s3+c5+c6)%255;s6=(s4+c6+c1)%255;
+	}
+	var r=[String.fromCharCode(s1),String.fromCharCode(s2),String.fromCharCode(s3),
+		String.fromCharCode(s4),String.fromCharCode(s5),String.fromCharCode(s6)];
+	return r.join('');
 }
 
 /**
