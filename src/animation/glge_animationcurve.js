@@ -104,9 +104,17 @@ GLGE.AnimationCurve.prototype.getValue=function(frame, prevValue, rotation){
 			preEndKey=i;
 		}
 	}
+	if (preEndKey==undefined) {
+		if (endKey==undefined)
+			endKey=startKey;
+		preEndKey=endKey;
+	}
 	if(startKey==undefined){
 		startKey=endKey;
 		endKey=preEndKey;
+	}
+	if (preStartKey==undefined) {
+		preStartKey=startKey;
 	}
 	if(endKey==undefined){
 		endKey=startKey;
@@ -154,7 +162,10 @@ GLGE.AnimationCurve.prototype.getValue=function(frame, prevValue, rotation){
 			startY=getCloser(startY,prevValue,360);
 			startY=getCloser(startY,prevValue,180);
 		}
-		var value=(frame-this.keyFrames[startKey].x)*(endY-startY)/(this.keyFrames[endKey].x-this.keyFrames[startKey].x)+startY;
+		var delt=(this.keyFrames[endKey].x-this.keyFrames[startKey].x);
+		if (delt==0)
+			delt=1.0;
+		var value=(frame-this.keyFrames[startKey].x)*(endY-startY)/delt+startY;
 		return value;
 	}
 	if(this.keyFrames[startKey] instanceof GLGE.StepPoint){

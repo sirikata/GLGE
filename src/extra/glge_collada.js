@@ -1222,6 +1222,8 @@ GLGE.Collada.prototype.getAnimationVector=function(channels){
 	
 	}
 	var animVector=new GLGE.AnimationVector();
+	if (maxFrame==0)
+		maxFrame=1.0;
 	animVector.setFrames(maxFrame);
 	var quatxcurve=new GLGE.AnimationCurve(); quatxcurve.setChannel("QuatX");
 	var quatycurve=new GLGE.AnimationCurve(); quatycurve.setChannel("QuatY");
