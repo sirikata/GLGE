@@ -443,6 +443,8 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 		if(!outputData.NORMAL){
             console.log("Autogenerating normals, do not know facings");
 			outputData.NORMAL=[];
+            if (!outputData.POSITION)
+                outputData.POSITION=outputData.VERTEX;
 			for(n=0;n<outputData.POSITION.length;n=n+9){
 				var vec1=GLGE.subVec3([outputData.POSITION[n],outputData.POSITION[n+1],outputData.POSITION[n+2]],[outputData.POSITION[n+3],outputData.POSITION[n+4],outputData.POSITION[n+5]]);
 				var vec2=GLGE.subVec3([outputData.POSITION[n+6],outputData.POSITION[n+7],outputData.POSITION[n+8]],[outputData.POSITION[n],outputData.POSITION[n+1],outputData.POSITION[n+2]]);
@@ -461,6 +463,8 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
          	for(n=0;n<len;n++) faces.push(n);   
 		}else {
             windingOrder=GLGE.Mesh.WINDING_ORDER_CLOCKWISE;
+            if (!outputData.POSITION)
+                outputData.POSITION=outputData.VERTEX;
 			for(n=0;n<outputData.POSITION.length;n=n+9){
 				var vec1=GLGE.subVec3([outputData.POSITION[n],outputData.POSITION[n+1],outputData.POSITION[n+2]],[outputData.POSITION[n+3],outputData.POSITION[n+4],outputData.POSITION[n+5]]);
 				var vec2=GLGE.subVec3([outputData.POSITION[n+6],outputData.POSITION[n+7],outputData.POSITION[n+8]],[outputData.POSITION[n],outputData.POSITION[n+1],outputData.POSITION[n+2]]);
