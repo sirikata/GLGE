@@ -90,6 +90,17 @@ GLGE.TRUE=1;
 */
 GLGE.FALSE=0;
 
+/**
+* @constant 
+* @description Enumeration for global refrance frame
+*/
+GLGE.GLOBAL=0;
+/**
+* @constant 
+* @description Enumeration for local refrance frame
+*/
+GLGE.LOCAL=1;
+
 
 /**
 * @constant 
@@ -151,9 +162,15 @@ GLGE.RENDER_EMIT=4;
 
 /**
 * @constant 
+* @description Enumeration for depth rendering
+*/
+GLGE.RENDER_DEPTH=5;
+
+/**
+* @constant 
 * @description Enumeration for no rendering
 */
-GLGE.RENDER_NULL=5;
+GLGE.RENDER_NULL=6;
 
 /**
 * @constant 
@@ -164,7 +181,7 @@ GLGE.TEXT_BOXPICK=1;
 * @constant 
 * @description Enumeration for text bound text picking
 */
-GLGE.TEXT_TEXTPICK=1;
+GLGE.TEXT_TEXTPICK=2;
 
 /**
 * @constant 
@@ -336,28 +353,22 @@ GLGE.Assets.get=function(uid){
 * @function hashing function
 * @private
 */
-GLGE.fastHash=function(str){
-	var s1=0;var s2=0;var s3=0;var s4=0;var s5=0;var s6=0;
-	var c1=0;var c2=0;var c3=0;var c4=0;var c5=0;var c6=0;
-	var i=0;
-	var length=str.length;
-	str+="000000";
-	while(i<length){
-		c1=str.charCodeAt(i++);c2=str.charCodeAt(i++);c3=str.charCodeAt(i++);
-		c4=str.charCodeAt(i++);c5=str.charCodeAt(i++);c6=str.charCodeAt(i++);
-		s1=(s5+c1+c2)%255;s2=(s6+c2+c3)%255;s3=(s1+c3+c4)%255;
-		s4=(s2+c4+c5)%255;s5=(s3+c5+c6)%255;s6=(s4+c6+c1)%255;
-	}
-	var r=[String.fromCharCode(s1),String.fromCharCode(s2),String.fromCharCode(s3),
-		String.fromCharCode(s4),String.fromCharCode(s5),String.fromCharCode(s6)];
-	return r.join('');
+GLGE.DJBHash=function(str){
+      var hash = 5381;
+
+      for(var i = 0; i < str.length; i++){
+		hash = ((hash << 5) + hash) + str.charCodeAt(i);
+      }
+
+      return hash;
 }
+
 /**
 * @function check if shader is already created if not then create it
 * @private
 */
 GLGE.getGLShader=function(gl,type,str){
-	var hash=GLGE.fastHash(str);
+	var hash=GLGE.DJBHash(str);
 	if(!gl.shaderCache) gl.shaderCache={};
 	if(!gl.shaderCache[hash]){
 		var shader=gl.createShader(type);
@@ -395,7 +406,7 @@ GLGE.getGLProgram=function(gl,vShader,fShader){
 	gl.attachShader(program, fShader);
 	gl.linkProgram(program);
 	if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-		GLGE.error(gl.getProgramInfoLog(program));
+		GLGE.error("Couldn't link shader: " + gl.getProgramInfoLog(program));
 	}
 	programCache.push({vShader:vShader,fShader:fShader,program:program});
 	if(!program.uniformDetails){
@@ -447,6 +458,14 @@ GLGE.setUniform3=function(gl,type,location,value1,value2,value3){
 	if(typeof value3=="string") value3=+value3;
 	if(location!=null)
 		gl["uniform"+type](location,value1,value2,value3);
+
+};
+
+GLGE.setUniform2=function(gl,type,location,value1,value2){
+	if(typeof value1=="string") value1=+value1;
+	if(typeof value2=="string") value2=+value2;
+	if(location!=null)
+		gl["uniform"+type](location,value1,value2);
 
 };
 GLGE.setUniform4=function(gl,type,location,value1,value2,value3,value4){

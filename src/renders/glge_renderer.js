@@ -44,18 +44,22 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * @param {object} canvas The canvas element to render to
 * @augments GLGE.QuickNotation
 */
-GLGE.Renderer=function(canvas,error){
+GLGE.Renderer=function(canvas,error,props){
 	this.viewport=[];
 	this.canvas=canvas;
+	if(!props) props={alpha:true,depth:true,stencil:true,antialias:true,premultipliedAlpha:true};
 	try {
-		this.gl = canvas.getContext("experimental-webgl",{alpha:true,depth:true,stencil:true,antialias:true,premultipliedAlpha:true});
+		this.gl = canvas.getContext("experimental-webgl",props);
+	} catch(e) {}
+	try {
+		if(!this.gl) this.gl = canvas.getContext("webgl",props);
 	} catch(e) {}
 	if(!this.gl) {
         console.log("GLGE err:", typeof(globalNoWebGLError)=="undefined")
 		if( (!error) && (typeof(globalNoWebGLError)=="undefined")){
 			var div=document.createElement("div");
 			div.setAttribute("style","position: absolute; top: 10px; left: 10px; font-family: sans-serif; font-size: 14px; padding: 10px;background-color: #fcffcb;color: #800; width: 200px; border:2px solid #f00");
-			div.innerHTML="Cannot detect webgl please download a compatible browser";
+			div.innerHTML="WebGL compatible Browser Required(Firefox 4 or Chrome 9 and up) or you may need to update your graphics card driver.";
 			document.getElementsByTagName("body")[0].appendChild(div);
 			throw "cannot create webgl context";
 		}else{

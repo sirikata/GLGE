@@ -42,6 +42,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /**
+* @name GLGE.Group#childAdded
+* @event fires when and object is added as a child
+* @param {object} event
+*/
+	
+/**
+* @name GLGE.Group#childRemoved
+* @event fires when and object is removed
+* @param {object} event
+*/
+
+/**
 * @constant 
 * @description Enumeration for node group type
 */
@@ -189,6 +201,7 @@ GLGE.Group.prototype.updateAllPrograms=function(){
 */
 GLGE.Group.prototype.addChild=function(object){
 	if(object.parent) object.parent.removeChild(object);
+	GLGE.reuseMatrix4(object.matrix);
 	object.matrix=null; //clear any cache
 	object.parent=this;
 	this.children.push(object);
@@ -204,9 +217,14 @@ GLGE.Group.prototype.addChild=function(object){
 			while(root.parent) root=root.parent;
 			root.updateAllPrograms();
 		});
-    	object.addEventListener("downloadComplete",this.downloadComplete);
+		object.addEventListener("downloadComplete",this.downloadComplete);
 	}
-	
+	this.fireEvent("childAdded",{obj:object});
+	if(object.fireEvent) object.fireEvent("appened",{obj:this});
+	this.fireEvent("childAdded",{obj:object});
+	//fire child added event for all parents as well
+	var o=this;
+	while(o=o.parent) o.fireEvent("childAdded",{obj:object,target:this});
 	return this;
 }
 GLGE.Group.prototype.addObject=GLGE.Group.prototype.addChild;
@@ -226,13 +244,18 @@ GLGE.Group.prototype.addWavefront=GLGE.Group.prototype.addChild;
 GLGE.Group.prototype.removeChild=function(object){
 	for(var i=0;i<this.children.length;i++){
 		if(this.children[i]==object){
-    	    if(this.children[i].removeEventListener){
-                this.children[i].removeEventListener("downloadComplete",this.downloadComplete);
-    	    }
+			if(this.children[i].removeEventListener){
+				this.children[i].removeEventListener("downloadComplete",this.downloadComplete);
+			}
 			this.children.splice(i, 1);
 			if(this.scene && this.scene["remove"+object.className]){
 				this.scene["remove"+object.className](object);
 			}
+			if(object.fireEvent) object.fireEvent("removed",{obj:this});
+			this.fireEvent("childRemoved",{obj:object});
+			//fire child removed event for all parents as well
+			var o=this;
+			while(o=o.parent) o.fireEvent("childRemoved",{obj:object,target:this});
 			break;
 		}
 	}

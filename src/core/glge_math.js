@@ -40,6 +40,40 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (function(GLGE){
 
+
+var matrixCache=[];
+
+//matrix reuse prevent so much GC
+GLGE.reuseMatrix4=function(mat4){
+	//if(mat4 && mat4.length==16 && matrixCache<10000) matrixCache.push(mat4);
+}
+
+GLGE.matrix4=function(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16){
+	if(matrixCache.length==0){
+		var mat=[a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16];
+	}else{
+		var mat=matrixCache.shift();
+		mat[0]=a1;
+		mat[1]=a2;
+		mat[2]=a3;
+		mat[3]=a4;
+		mat[4]=a5;
+		mat[5]=a6;
+		mat[6]=a7;
+		mat[7]=a8;
+		mat[8]=a9;
+		mat[9]=a10;
+		mat[10]=a11;
+		mat[11]=a12;
+		mat[12]=a13;
+		mat[13]=a14;
+		mat[14]=a15;
+		mat[15]=a16;
+	}
+	return mat;	
+}
+
+
 GLGE.Vec=function(array) {
     return array.slice(0);
 }
@@ -313,7 +347,8 @@ GLGE.Mat4=function(array) {
     if (array.length==9) {
         retval=[array[0],array[1],array[2],0,array[3],array[4],array[5],0,array[6],array[7],array[8],0,0,0,0,1];
     }else if (array.length==16) {
-        retval=array.slice(0);
+        if(array.slice) retval=array.slice(0);
+		else retval=array.subarray(0);
     }else {
         throw "invalid matrix length";
     }
@@ -346,7 +381,7 @@ GLGE.inverseMat4=function(mat){
 			a10*a01*a32*a23 - a00*a11*a32*a23 - a20*a11*a02*a33 + a10*a21*a02*a33 +
 			a20*a01*a12*a33 - a00*a21*a12*a33 - a10*a01*a22*a33 + a00*a11*a22*a33;
 	
-	return [ (a21*a32*a13 - a31*a22*a13 + a31*a12*a23 - a11*a32*a23 - a21*a12*a33 + a11*a22*a33)/d,
+	return GLGE.matrix4((a21*a32*a13 - a31*a22*a13 + a31*a12*a23 - a11*a32*a23 - a21*a12*a33 + a11*a22*a33)/d,
 	(a31*a22*a03 - a21*a32*a03 - a31*a02*a23 + a01*a32*a23 + a21*a02*a33 - a01*a22*a33)/d,
 	(a11*a32*a03 - a31*a12*a03 + a31*a02*a13 - a01*a32*a13 - a11*a02*a33 + a01*a12*a33)/d,
 	(a21*a12*a03 - a11*a22*a03 - a21*a02*a13 + a01*a22*a13 + a11*a02*a23 - a01*a12*a23)/d,
@@ -361,7 +396,7 @@ GLGE.inverseMat4=function(mat){
 	(a30*a21*a12 - a20*a31*a12 - a30*a11*a22 + a10*a31*a22 + a20*a11*a32 - a10*a21*a32)/d,
 	(a20*a31*a02 - a30*a21*a02 + a30*a01*a22 - a00*a31*a22 - a20*a01*a32 + a00*a21*a32)/d,
 	(a30*a11*a02 - a10*a31*a02 - a30*a01*a12 + a00*a31*a12 + a10*a01*a32 - a00*a11*a32)/d,
-	(a10*a21*a02 - a20*a11*a02 + a20*a01*a12 - a00*a21*a12 - a10*a01*a22 + a00*a11*a22)/d]
+	(a10*a21*a02 - a20*a11*a02 + a20*a01*a12 - a00*a21*a12 - a10*a01*a22 + a00*a11*a22)/d)
 };
 
 /**
@@ -390,7 +425,7 @@ GLGE.mulMat4Vec4=function(mat1,vec2){
 * @returns {GLGE.Mat} the matrix multiplication of the matrices
 */
 GLGE.scaleMat4=function(m,value) {
-    return GLGE.Mat([m[0]*value,m[1]*value,m[2]*value,m[3]*value,
+    return GLGE.matrix4([m[0]*value,m[1]*value,m[2]*value,m[3]*value,
                                 m[4]*value,m[5]*value,m[6]*value,m[7]*value,
                                 m[8]*value,m[9]*value,m[10]*value,m[11]*value,
                                 m[12]*value,m[13]*value,m[14]*value,m[15]*value]);
@@ -538,7 +573,7 @@ GLGE.mulMat4=function(mat2,mat1){
 	var b10 = mat2[4], b11 = mat2[5], b12 = mat2[6], b13 = mat2[7];
 	var b20 = mat2[8], b21 = mat2[9], b22 = mat2[10], b23 = mat2[11];
 	var b30 = mat2[12], b31 = mat2[13], b32 = mat2[14], b33 = mat2[15];
-	return [b00 * a00 + b01 * a10 + b02 * a20 + b03 * a30,
+	return GLGE.matrix4(b00 * a00 + b01 * a10 + b02 * a20 + b03 * a30,
 		b00 * a01 + b01 * a11 + b02 * a21 + b03 * a31,
 		b00 * a02 + b01 * a12 + b02 * a22 + b03 * a32,
 		b00 * a03 + b01 * a13 + b02 * a23 + b03 * a33,
@@ -556,7 +591,7 @@ GLGE.mulMat4=function(mat2,mat1){
 		b30 * a00 + b31 * a10 + b32 * a20 + b33 * a30,
 		b30 * a01 + b31 * a11 + b32 * a21 + b33 * a31,
 		b30 * a02 + b31 * a12 + b32 * a22 + b33 * a32,
-		b30 * a03 + b31 * a13 + b32 * a23 + b33 * a33];
+		b30 * a03 + b31 * a13 + b32 * a23 + b33 * a33);
 };
 
 GLGE.transposeInPlaceMat4=function(m) {
@@ -593,10 +628,10 @@ GLGE.transposeInPlaceMat4=function(m) {
 * @returns {GLGE.Mat} the transposed matrix
 */
 GLGE.transposeMat4=function(m) {
-    return GLGE.Mat4([m[0],m[4],m[8],m[12],
+    return GLGE.matrix4(m[0],m[4],m[8],m[12],
 		              m[1],m[5],m[9],m[13],
 		              m[2],m[6],m[10],m[14],
-		              m[3],m[7],m[11],m[15]]);
+		              m[3],m[7],m[11],m[15]);
 };
 
 /**
@@ -682,7 +717,7 @@ GLGE.glDataMat4=function(m) {
  * @returns {GLGE.Mat} the identity matrix
  */
 GLGE.identMatrix=function(){
-	return GLGE.Mat([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
+	return GLGE.matrix4(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1);
 };
 /**
  * Creates a translation matrix
@@ -708,12 +743,12 @@ GLGE.translateMatrix=function(value){
 		y=value[1];
 		z=value[2];
 	}
-	return GLGE.Mat([
+	return GLGE.matrix4(
 		1,0,0,x,
 		0,1,0,y,
 		0,0,1,z,
 		0,0,0,1
-		]);
+		);
 };
 /**
  * Creates a scale matrix
@@ -739,12 +774,12 @@ GLGE.scaleMatrix=function(value){
 		y=value[1];
 		z=value[2];
 	}
-	return GLGE.Mat([
+	return GLGE.matrix4(
 		x,0,0,0,
 		0,y,0,0,
 		0,0,z,0,
 		0,0,0,1
-		]);
+		);
 }
 /**
 * @constant 
@@ -808,9 +843,9 @@ GLGE.rotateMatrix=function(value,type) {
 	var siny=Math.sin(y);
 	var cosz=Math.cos(z);
 	var sinz=Math.sin(z);
-	var rotx=GLGE.Mat([1,0,0,0,0,cosx,-sinx,0,0,sinx,cosx,0,0,0,0,1]);
-	var roty=GLGE.Mat([cosy,0,siny,0,0,1,0,0,-siny,0,cosy,0,0,0,0,1]);
-	var rotz=GLGE.Mat([cosz,-sinz,0,0,sinz,cosz,0,0,0,0,1,0,0,0,0,1]);
+	var rotx=GLGE.matrix4(1,0,0,0,0,cosx,-sinx,0,0,sinx,cosx,0,0,0,0,1);
+	var roty=GLGE.matrix4(cosy,0,siny,0,0,1,0,0,-siny,0,cosy,0,0,0,0,1);
+	var rotz=GLGE.matrix4(cosz,-sinz,0,0,sinz,cosz,0,0,0,0,1,0,0,0,0,1);
 	switch(type){
 		case GLGE.ROT_XYZ:
 			return GLGE.mulMat4(rotx,GLGE.mulMat4(roty,rotz));
@@ -851,21 +886,90 @@ GLGE.angleAxis=function(angle, axis) {
         xmx = x * x;ymy = y * y;zmz = z * z;
         xmy = x * y;ymz = y * z;zmx = z * x;
 	
-	var matrix = [(cosi * xmx) + cos,(cosi * xmy) - zms,(cosi * zmx) + yms,0,
+	var matrix = GLGE.matrix4((cosi * xmx) + cos,(cosi * xmy) - zms,(cosi * zmx) + yms,0,
 			(cosi * xmy) + zms,(cosi * ymy) + cos,(cosi * ymz) - xms,0,
 			(cosi * zmx) - yms,(cosi * ymz) + xms,(cosi * zmz) + cos,0,
-			0,0,0,1];
+			0,0,0,1);
 
         return GLGE.Mat(matrix);
 };
 
+
+// JHD
+GLGE.quatFromAxisAngle = function(axis, angle) {
+	var quaternion = [];
+	var halfAngle = angle * 0.5;
+	var sinus = Math.sin(halfAngle);
+	var cosinus = Math.cos(halfAngle);
+	quaternion[0] = axis[0] * sinus;
+	quaternion[1] = axis[1] * sinus;
+	quaternion[2] = axis[2] * sinus;
+	quaternion[3] = cosinus;
+	return quaternion;
+};
+
+GLGE.mulQuat = function(quaternion1, quaternion2) {
+	var quaternion = [];
+	var x = quaternion1[0];
+	var y = quaternion1[1];
+	var z = quaternion1[2];
+	var w = quaternion1[3];
+	var x2 = quaternion2[0];
+	var y2 = quaternion2[1];
+	var z2 = quaternion2[2];
+	var w2 = quaternion2[3];
+	var a = (y * z2) - (z * y2);
+	var b = (z * x2) - (x * z2);
+	var c = (x * y2) - (y * x2);
+	var d = ((x * x2) + (y * y2)) + (z * z2);
+	quaternion[0] = ((x * w2) + (x2 * w)) + a;
+	quaternion[1] = ((y * w2) + (y2 * w)) + b;
+	quaternion[2] = ((z * w2) + (z2 * w)) + c;
+	quaternion[3] = (w * w2) - d;
+	return quaternion;
+};
+
+GLGE.mat4FromQuat = function(quaternion) {
+	// TODO: Optimize with storing the array-wise indexed values
+	// in direct acessible variables?
+	var x2 = quaternion[0] * quaternion[0];
+	var y2 = quaternion[1] * quaternion[1];
+	var z2 = quaternion[2] * quaternion[2];
+	var xy = quaternion[0] * quaternion[1];
+	var zw = quaternion[2] * quaternion[3];
+	var zx = quaternion[2] * quaternion[0];
+	var yw = quaternion[1] * quaternion[3];
+	var yz = quaternion[1] * quaternion[2];
+	var xw = quaternion[0] * quaternion[3];
+	var result = [];
+	result[0] = 1 - (2 * (y2 + z2));
+	result[1] = 2 * (xy + zw);
+	result[2] = 2 * (zx - yw);
+	result[3] = 0;
+	result[4] = 2 * (xy - zw);
+	result[5] = 1 - (2 * (z2 + x2));
+	result[6] = 2 * (yz + xw);
+	result[7] = 0;
+	result[8] = 2 * (zx + yw);
+	result[9] = 2 * (yz - xw);
+	result[10] = 1 - (2 * (y2 + x2));
+	result[11] = 0;
+	result[12] = 0;
+	result[13] = 0;
+	result[14] = 0;
+	result[15] = 1;
+	return result;
+};
+// JHD - end
+
+
 GLGE.quatRotation=function(qx,qy,qz,qw){
-	return GLGE.Mat([
+	return GLGE.matrix4(
 	                    1 - 2*qy*qy - 2*qz*qz,2*qx*qy - 2*qz*qw,2*qx*qz + 2*qy*qw,0,
 	                    2*qx*qy + 2*qz*qw,1 - 2*qx*qx - 2*qz*qz,2*qy*qz - 2*qx*qw,0,
 	                    2*qx*qz - 2*qy*qw,2*qy*qz + 2*qx*qw,1 - 2*qx*qx - 2*qy*qy,0,
 	                    0,0,0,1
-	                ]);
+	                );
 };
 
 
@@ -874,10 +978,10 @@ GLGE.makeOrtho=function(left,right,bottom,top,near,far){
 	var y = -(top+bottom)/(top-bottom);
 	var z = -(far+near)/(far-near);
 
-        return GLGE.Mat([2/(right-left), 0, 0, x,
+        return GLGE.matrix4(2/(right-left), 0, 0, x,
                0, 2/(top-bottom), 0, y,
                0, 0, -2/(far-near), z,
-               0, 0, 0, 1]);
+               0, 0, 0, 1);
 };
 
 
@@ -888,10 +992,10 @@ GLGE.makeFrustum=function(left,right,bottom,top,near,far){
 	var b = (top+bottom)/(top-bottom);
 	var c = -(far+near)/(far-near);
 	var d = -2*far*near/(far-near);
-	return GLGE.Mat([x, 0, a, 0,
+	return GLGE.matrix4(x, 0, a, 0,
 		       0, y, b, 0,
 		       0, 0, c, d,
-		       0, 0, -1, 0]);
+		       0, 0, -1, 0);
 };
 
 GLGE.makePerspective=function(fovy, aspect, near, far){
@@ -1166,6 +1270,33 @@ GLGE.pointsInFrustumPlanes=function(points,planes){
 	}
 	return true;
 }
+
+//get projection matrix for a directional light
+GLGE.getDirLightProjection=function(cvp,light,projectedDistance,distance){
+	var pointTransform=GLGE.mulMat4(light,GLGE.inverseMat4(cvp));
+	var min=[0,0,0];
+	var max=[0,0,0];
+	for(x=0;x<2;x++){
+		for(y=0;y<2;y++){
+			for(z=0;z<2;z++){
+				var vec=GLGE.mulMat4Vec4(pointTransform,[x*2-1,y*2-1,z*projectedDistance,1]);
+				vec[0]=vec[0]/vec[3];vec[1]=vec[1]/vec[3];vec[2]=vec[2]/vec[3];
+				min[0]=min[0] > vec[0] ? vec[0] : min[0];
+				min[1]=min[1] > vec[1] ? vec[1] : min[1];
+				max[0]=max[0] < vec[0] ? vec[0] : max[0];
+				max[1]=max[1] < vec[1] ? vec[1] : max[1];
+				max[2]=max[2] < vec[2] ? vec[2] : max[2];
+			}
+		}
+	}
+	var mat=GLGE.makeOrtho(min[0],max[0],min[1],max[1],0.01,+distance);
+	//mat[0]*=8;
+	//mat[5]*=8;
+	//var mat=GLGE.makeFrustum(min[0],max[0],min[1],max[1],500,0.01);
+	//var mat=GLGE.makeOrtho(-30,30,-30,30,0.01,500);
+	//alert(mat);
+	return mat
+};
 
 
 function GLGE_mathUnitTest() {

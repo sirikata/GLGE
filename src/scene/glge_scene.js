@@ -55,6 +55,17 @@ GLGE.FOG_LINEAR=2;
 GLGE.FOG_QUADRATIC=3;
 
 /**
+* @constant 
+* @description Enumeration for linear fall off fog fading to sky
+*/
+GLGE.FOG_SKYLINEAR=4;
+/**
+* @constant 
+* @description Enumeration for exponential fall off fog fading to sky
+*/
+GLGE.FOG_SKYQUADRATIC=5;
+
+/**
 * @class Scene class containing the camera, lights and objects
 * @augments GLGE.Group
 * @augments GLGE.QuickNotation
@@ -71,8 +82,6 @@ GLGE.Scene=function(uid){
 	this.passes=[];
 }
 GLGE.augment(GLGE.Group,GLGE.Scene);
-GLGE.augment(GLGE.QuickNotation,GLGE.Scene);
-GLGE.augment(GLGE.JSONLoader,GLGE.Scene);
 GLGE.Scene.prototype.camera=null;
 GLGE.Scene.prototype.className="Scene";
 GLGE.Scene.prototype.renderer=null;
@@ -85,6 +94,7 @@ GLGE.Scene.prototype.fogFar=80;
 GLGE.Scene.prototype.fogType=GLGE.FOG_NONE;
 GLGE.Scene.prototype.passes=null;
 GLGE.Scene.prototype.culling=true;
+
 
 /**
 * Gets the fog falloff type
@@ -308,6 +318,22 @@ GLGE.Scene.prototype.setFilter2d=function(value){
 GLGE.Scene.prototype.getFilter2d=function(filter){
 	return this.filter;
 }
+
+/**
+* sets the sky filter to apply
+* @param {GLGE.Filter2d} filter tthe filter used to render the sky
+*/
+GLGE.Scene.prototype.setSkyFilter=function(value){
+	this.skyfilter=value;
+	return this;
+}
+/**
+* gets the sky filter
+* @returns {GLGE.Filter2d}
+*/
+GLGE.Scene.prototype.getSkyFilter=function(filter){
+	return this.skyfilter;
+}
 /**
 * gets the scenes frame buffer
 * @private
@@ -334,8 +360,16 @@ GLGE.Scene.prototype.objectsInViewFrustum=function(renderObjects,cvp){
 				var points=boundingVolume.getCornerPoints();
 				if(GLGE.pointsInFrustumPlanes(points,planes)){
 					returnObjects.push(obj);
+					if(obj.culled) obj.fireEvent("willRender",{});
+					obj.culled=false;
+				}else{
+					if(!obj.culled) obj.fireEvent("willCull",{});
+					obj.culled=true;
 				}
-			}	
+			}else{
+				if(!obj.culled) obj.fireEvent("willCull",{});
+				obj.culled=true;
+			}
 		}else{
 			returnObjects.push(obj);
 		}
@@ -405,6 +439,16 @@ GLGE.Scene.prototype.stateSort=function(a,b){
 	}
 }
 
+/**
+* Sets up the WebGL needed to render the sky for use in sky fog
+* @private
+*/
+GLGE.Scene.prototype.createSkyBuffer=function(gl){
+    this.skyTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.skyTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, this.renderer.canvas.width,this.renderer.canvas.height, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
+}
+
 
 /**
 * renders the scene
@@ -425,6 +469,7 @@ GLGE.Scene.prototype.render=function(gl){
 	
 	this.framebuffer=this.getFrameBuffer(gl);
 	
+
 	var renderObjects=this.getObjects();
 	var cvp=this.camera.getViewProjection();
 	
@@ -434,6 +479,7 @@ GLGE.Scene.prototype.render=function(gl){
 	}
 	renderObjects=this.unfoldRenderObject(renderObjects);
 	renderObjects=renderObjects.sort(this.stateSort);
+
 	
 	//shadow stuff
 	for(var i=0; i<lights.length;i++){
@@ -441,39 +487,78 @@ GLGE.Scene.prototype.render=function(gl){
 			if(!lights[i].gl) lights[i].GLInit(gl);
 			var cameraMatrix=this.camera.matrix;
 			var cameraPMatrix=this.camera.getProjectionMatrix();
-			if(!lights[i].s_cache) lights[i].s_cache={};
-			if(lights[i].s_cache.pmatrix!=lights[i].getPMatrix() || lights[i].s_cache.mvmatrix!=lights[i].getModelMatrix()){
-				lights[i].s_cache.pmatrix=lights[i].getPMatrix();
-				lights[i].s_cache.mvmatrix=lights[i].getModelMatrix();
-				lights[i].s_cache.imvmatrix=GLGE.inverseMat4(lights[i].getModelMatrix());
-				lights[i].s_cache.smatrix=GLGE.mulMat4(lights[i].getPMatrix(),lights[i].s_cache.imvmatrix);
-				lights[i].shadowRendered=false;
+			var projectedDistance=0;
+			if(lights[i].getType()==GLGE.L_DIR){
+				var mat=lights[i].getModelMatrix();
+				var cmat=GLGE.inverseMat4(cameraMatrix);
+				mat[3]=(mat[2])*lights[i].distance/2+cmat[3];
+				mat[7]=(mat[6])*lights[i].distance/2+cmat[7];
+				mat[11]=(mat[10])*lights[i].distance/2+cmat[11];
+				lights[i].matrix=mat;
+				var tvec=GLGE.mulMat4Vec4(cameraPMatrix,[0,0,lights[i].distance,1]);
+				projectedDistance=tvec[3]/tvec[2]; //this is wrong?
 			}
+			
 				gl.bindFramebuffer(gl.FRAMEBUFFER, lights[i].frameBuffer);
+
+				if(!lights[i].s_cache) lights[i].s_cache={};
+				lights[i].s_cache.imvmatrix=GLGE.inverseMat4(lights[i].getModelMatrix());
+				lights[i].s_cache.mvmatrix=lights[i].getModelMatrix();
+				lights[i].s_cache.pmatrix=lights[i].getPMatrix(cvp,lights[i].s_cache.imvmatrix,projectedDistance,this.camera.far/2);
+				lights[i].s_cache.smatrix=GLGE.mulMat4(lights[i].s_cache.pmatrix,lights[i].s_cache.imvmatrix);
+				lights[i].shadowRendered=false;
+				
+				if(lights[i].getType()==GLGE.L_DIR){
+					var levels=lights[i].getCascadeLevels();
+				}else{
+					levels=1;
+				}
+				
+				
+				gl.viewport(0,0,parseFloat(lights[i].bufferWidth),parseFloat(lights[i].bufferHeight));
+				gl.clearDepth(1.0);
+				gl.clearColor(0, 0, 0, 0);
+				gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+					
+				var height=(parseFloat(lights[i].bufferHeight)/levels)|0;
+				var width=parseFloat(lights[i].bufferWidth);
 				
 
-				gl.viewport(0,0,parseFloat(lights[i].bufferWidth),parseFloat(lights[i].bufferHeight));
-				gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-				
-				this.camera.setProjectionMatrix(lights[i].s_cache.pmatrix);
-				this.camera.matrix=lights[i].s_cache.imvmatrix;
-				//draw shadows
-				for(var n=0; n<renderObjects.length;n++){
-					renderObjects[n].object.GLRender(gl, GLGE.RENDER_SHADOW,n,renderObjects[n].multiMaterial,lights[i].distance);
+				for(var l=0;l<levels;l++){
+					gl.viewport(0,l*height,width,height);						
+
+					this.camera.setProjectionMatrix(lights[i].s_cache.pmatrix);
+					this.camera.matrix=lights[i].s_cache.imvmatrix;
+					//draw shadows
+					for(var n=0; n<renderObjects.length;n++){
+						if(lights[i].getType()==GLGE.L_SPOT){
+							renderObjects[n].object.GLRender(gl, GLGE.RENDER_SHADOW,n,renderObjects[n].multiMaterial,lights[i].distance);
+						}else{
+							renderObjects[n].object.GLRender(gl, GLGE.RENDER_DEPTH,n,renderObjects[n].multiMaterial,lights[i].distance);
+						}
+					}
+					lights[i].s_cache.pmatrix[0]*=2;
+					lights[i].s_cache.pmatrix[5]*=2;
 				}
-				gl.flush();
-				this.camera.matrix=cameraMatrix;
-				this.camera.setProjectionMatrix(cameraPMatrix);
+				lights[i].s_cache.pmatrix[0]/=2;
+				lights[i].s_cache.pmatrix[5]/=2;
 				
-				gl.bindTexture(gl.TEXTURE_2D, lights[i].texture);
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-				gl.generateMipmap(gl.TEXTURE_2D);
+				lights[i].s_cache.smatrix=GLGE.mulMat4(lights[i].s_cache.pmatrix,lights[i].s_cache.imvmatrix);
 			
-			
-			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+						
+			this.camera.matrix=cameraMatrix;
+			this.camera.setProjectionMatrix(cameraPMatrix);
 		}
 	}
+	
+	if(this.culling){
+		var cvp=this.camera.getViewProjection();
+		renderObjects=this.objectsInViewFrustum(renderObjects,cvp);
+	}
+	
+	gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+
+	
 	if(this.camera.animation) this.camera.animate();
 	
 	//null render pass to findout what else needs rendering
@@ -497,6 +582,7 @@ GLGE.Scene.prototype.render=function(gl){
 
 	gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
 	this.renderPass(gl,renderObjects,this.renderer.getViewportOffsetX(),this.renderer.getViewportOffsetY(),this.renderer.getViewportWidth(),this.renderer.getViewportHeight());	
+
 	
 	this.applyFilter(gl,renderObjects,null);
 	
@@ -533,30 +619,41 @@ GLGE.Scene.prototype.renderPass=function(gl,renderObjects,offsetx,offsety,width,
 	}
 	if(!type) type=GLGE.RENDER_DEFAULT;
 	
+	if(this.skyfilter && type==GLGE.RENDER_DEFAULT){
+		this.skyfilter.GLRender(gl);
+		gl.clear(gl.DEPTH_BUFFER_BIT);
+		if(this.skyfilter && this.fogType==GLGE.FOG_SKYQUADRATIC || this.fogType==GLGE.FOG_SKYLINEAR){
+			if(!this.skyTexture) this.createSkyBuffer(gl);
+			gl.bindTexture(gl.TEXTURE_2D, this.skyTexture);
+			gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGB, 0, 0, width, height, 0);
+		}
+	}
+	
 	var transObjects=[];
 	gl.disable(gl.BLEND);
 	for(var i=0; i<renderObjects.length;i++){
-		if(!renderObjects[i].object.zTrans && renderObjects[i]!=self) renderObjects[i].object.GLRender(gl,type,0,renderObjects[i].multiMaterial);
-			else if(renderObjects[i]!=self) transObjects.push(renderObjects[i])
+		if(!renderObjects[i].object.zTrans && renderObjects[i].object!=self) renderObjects[i].object.GLRender(gl,type,0,renderObjects[i].multiMaterial);
+			else if(renderObjects[i].object!=self) transObjects.push(renderObjects[i]);
 	}
 
 	gl.enable(gl.BLEND);
 	transObjects=this.zSort(gl,transObjects);
 	for(var i=0; i<transObjects.length;i++){
-        if(transObjects[i].object.blending){
-            if(transObjects[i].object.blending.length=4){
-                gl.blendFuncSeparate(gl[transObjects[i].object.blending[0]],gl[transObjects[i].object.blending[1]],gl[transObjects[i].object.blending[2]],gl[transObjects[i].object.blending[3]]);
-            }else{
-                gl.blendFunc(gl[transObjects[i].object.blending[0]],gl[transObjects[i].object.blending[1]]);
-            }
-        }
-        if(transObjects[i].object.depthTest){
-            gl.enable(this.gl.DEPTH_TEST);   
-        }else{
-            gl.disable(this.gl.DEPTH_TEST);   
-        }
+	if(transObjects[i].object.blending){
+		if(transObjects[i].object.blending.length=4){
+			gl.blendFuncSeparate(gl[transObjects[i].object.blending[0]],gl[transObjects[i].object.blending[1]],gl[transObjects[i].object.blending[2]],gl[transObjects[i].object.blending[3]]);
+		}else{
+			gl.blendFunc(gl[transObjects[i].object.blending[0]],gl[transObjects[i].object.blending[1]]);
+		}
+	}
+	if(transObjects[i].object.depthTest===false){
+		gl.disable(this.gl.DEPTH_TEST);   
+	}else{
+		gl.enable(this.gl.DEPTH_TEST);   
+	}
 		if(renderObjects[i]!=self) transObjects[i].object.GLRender(gl, type,0,transObjects[i].multiMaterial);
 	}
+
 }
 
 GLGE.Scene.prototype.applyFilter=function(gl,renderObject,framebuffer){
@@ -658,7 +755,7 @@ GLGE.Scene.prototype.ray=function(origin,direction){
 		for(var i=0; i<objects.length;i++){
 			if(objects[i].pickable) objects[i].GLRender(gl,GLGE.RENDER_PICK,i+1);
 		}
-		gl.flush();
+		//gl.flush();
 
 		var data = new Uint8Array(8 * 1 * 4);
 		gl.readPixels(0, 0, 8, 1, gl.RGBA,gl.UNSIGNED_BYTE, data);
@@ -713,20 +810,23 @@ GLGE.Scene.prototype.makeRay=function(x,y){
 		GLGE.error("No camera set for picking");
 		return null;
 	}else if(this.camera.matrix && this.camera.pMatrix){
+		//correct xy account for canvas scaling
+		var canvas=this.renderer.canvas;
+		x=x/canvas.offsetWidth*canvas.width;
+		y=y/canvas.offsetHeight*canvas.height;
+		
 		var height=this.renderer.getViewportHeight();
 		var width=this.renderer.getViewportWidth();
 		var offsetx=this.renderer.getViewportOffsetX();
 		var offsety=this.renderer.getViewportHeight()-this.renderer.canvas.height+this.renderer.getViewportOffsetY();
 		var xcoord =  ((x-offsetx)/width-0.5)*2;
 		var ycoord = -((y+offsety)/height-0.5)*2;
-
 		var invViewProj=GLGE.mulMat4(GLGE.inverseMat4(this.camera.matrix),GLGE.inverseMat4(this.camera.pMatrix));
 		var origin =GLGE.mulMat4Vec4(invViewProj,[xcoord,ycoord,-1,1]);
 		origin=[origin[0]/origin[3],origin[1]/origin[3],origin[2]/origin[3]];
 		var coord =GLGE.mulMat4Vec4(invViewProj,[xcoord,ycoord,1,1]);
 		coord=[-(coord[0]/coord[3]-origin[0]),-(coord[1]/coord[3]-origin[1]),-(coord[2]/coord[3]-origin[2])];
 		coord=GLGE.toUnitVec3(coord);
-
 		return {origin: origin, coord: coord};
 		
 	}else{

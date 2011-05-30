@@ -50,16 +50,21 @@ if(typeof(GLGE) == "undefined"){
 * @augments GLGE.Group
 */
 GLGE.Collada=function(uid){
-    GLGE.Assets.registerAsset(this,uid);
-    GLGE.Group.call(this);
+	GLGE.Assets.registerAsset(this,uid);
+	GLGE.Group.call(this);
 	this.children=[];
 	this.actions={};
 	this.boneIdx=0;
 	this.actionsIdx=0;
+
+
+	
+
 };
 GLGE.augment(GLGE.Group,GLGE.Collada);
 GLGE.Collada.prototype.type=GLGE.G_NODE;
 GLGE.Collada.prototype.useLights=false;
+GLGE.Collada.prototype.useCamera=false
 /**
 * Gets the absolute path given an import path and the path it's relative to
 * @param {string} path the path to get the absolute path for
@@ -137,6 +142,7 @@ GLGE.Collada.prototype.parseArray=function(node){
 		if(child) prev=currentArray.pop();
 		for(i=0;i<currentArray.length;i++) if(currentArray[i]!="") output.push(currentArray[i]);
 	}
+	
 	return output;
 };
 
@@ -166,6 +172,23 @@ GLGE.Collada.prototype.isSketchupFile = function() {
     }
     return false;
 };
+
+
+/**
+* set flag indicating if camera should be extracted from the collada document
+* @param {boolean} node the value to parse
+*/
+GLGE.Collada.prototype.setUseCamera=function(usecamera){
+	this.useCamera=usecamera;
+	return this;
+}
+/**
+* get flag indicating if camera should be extracted from the collada document
+* @returns {boolean} node the value to parse
+*/
+GLGE.Collada.prototype.getUseCamera=function(){
+	return this.useCamera;
+}
 
 /**
 * set flag indicating if lights should be extracted from the collada document
@@ -659,8 +682,15 @@ GLGE.Collada.prototype.createMaterialLayer=function(node,material,common,mapto,b
         
         layer.setMapinput(GLGE.UV1);
     }
-	if(node.getElementsByTagName("blend_mode")[0]) var blend=node.getElementsByTagName("blend_mode")[0].firstChild.nodeValue;
-	if(blend=="MULTIPLY")  layer.setBlendMode(GLGE.BL_MUL);
+    
+	// JHD: Added correct bracket enclosing for the "true" case.
+	if (node.getElementsByTagName("blend_mode")[0]) {
+		var blend = node.getElementsByTagName("blend_mode")[0].firstChild.nodeValue;
+		if (blend == "MULTIPLY")
+			layer.setBlendMode(GLGE.BL_MUL);
+	}
+	// JDH - End
+
 	material.addMaterialLayer(layer);
 }
 
@@ -698,8 +728,11 @@ var MaterialCache={};
 * @private
 */
 GLGE.Collada.prototype.getMaterial=function(id,bvi){	
-	if(!MaterialCache[this.url]) MaterialCache[this.url]={};
-	if(MaterialCache[this.url][id]){
+
+	// JHD: Added "else" and enclosing brackets
+	if (!MaterialCache[this.url]) {
+		MaterialCache[this.url] = {};
+	} else if (MaterialCache[this.url][id]) {
 		return MaterialCache[this.url][id];
 	}
 	
@@ -858,7 +891,7 @@ GLGE.Collada.prototype.getMaterial=function(id,bvi){
 			switch(child.tagName){
 				case "color":
 					color=child.firstChild.nodeValue.split(" ");
-					returnMaterial.setEmit(color[0]);
+					returnMaterial.setEmit({r:color[0],g:color[1],b:color[2]});
 					break;
 				case "param":
 					color=this.getFloat4(common,child.getAttribute("ref")).split(" ");
@@ -1045,8 +1078,14 @@ GLGE.Collada.prototype.getInstanceGeometry=function(node){
 		obj.setObject(node.GLGEObj);
 		return obj;
 	}else{
-		var meshes=this.getMeshes(node.getAttribute("url").substr(1));
-        this.setMaterialOntoMesh(meshes,node);
+		// JHD
+		var geometryId = node.getAttribute("url").substr(1);
+		var meshes = this.getMeshes(geometryId);
+		// JHD - End
+		this.setMaterialOntoMesh(meshes, node);
+		// JHD
+		node.GLGEObj.id = geometryId;
+		// JHD - End
 		return node.GLGEObj;
 	}
 };
@@ -1614,6 +1653,7 @@ GLGE.Collada.prototype.getInstanceController=function(node){
 	var skeletonData={vertexJoints:outputData["JOINT"],vertexWeight:outputData["WEIGHT"],joints:joints,inverseBindMatrix:inverseBindMatrix,count:maxJoints};
 
 	var meshes=this.getMeshes(controller.getElementsByTagName("skin")[0].getAttribute("source").substr(1),skeletonData);
+
 	this.setMaterialOntoMesh(meshes,node);
 	return node.GLGEObj;
 };
@@ -1632,31 +1672,62 @@ GLGE.Collada.prototype.getInstanceLight=function(node){
 		var c="rgb("+((colors[0]*255)|0)+","+((colors[1]*255)|0)+","+((colors[2]*255)|0)+")";
 		light.setColor(c);
 	}
-	switch(type.tagName){
+	switch (type.tagName) {
+		// JHD
 		case "point":
-		case "spot":
 			light.setType(GLGE.L_POINT);
-			var ca=type.getElementsByTagName("constant_attenuation");
-			if(ca.length>0) light.setAttenuationConstant(parseFloat(ca[0].firstChild.nodeValue));
-			var la=type.getElementsByTagName("linear_attenuation");
-			if(la.length>0) light.setAttenuationLinear(parseFloat(la[0].firstChild.nodeValue));
-			var qa=type.getElementsByTagName("quadratic_attenuation");
-			if(qa.length>0) light.setAttenuationQuadratic(parseFloat(qa[0].firstChild.nodeValue));
 		case "spot":
-			light.setType(GLGE.L_SPOT);
-			var se=type.getElementsByTagName("falloff_exponent");
-			if(se.length>0) {
-				var exp=parseFloat(se[0].firstChild.nodeValue);
-				if(exp<1.0001) exp*=128; //if less then one then assume they are using 0-1 so convert to 0-128
+			// JHD - End
+			var ca = type.getElementsByTagName("constant_attenuation");
+			if (ca.length > 0)
+				light.setAttenuationConstant(parseFloat(ca[0].firstChild.nodeValue));
+			var la = type.getElementsByTagName("linear_attenuation");
+			if (la.length > 0)
+				light.setAttenuationLinear(parseFloat(la[0].firstChild.nodeValue));
+			var qa = type.getElementsByTagName("quadratic_attenuation");
+			if (qa.length > 0)
+				light.setAttenuationQuadratic(parseFloat(qa[0].firstChild.nodeValue));
+			// JHD
+			if (type.tagName == "spot") {
+				light.setType(GLGE.L_SPOT);
+			} else {
+				break;
+			}
+			// case "spot":
+			// JHD - End
+			var se = type.getElementsByTagName("falloff_exponent");
+			if (se.length > 0) {
+				var exp = parseFloat(se[0].firstChild.nodeValue);
+				if (exp < 1.0001)
+					exp *= 128; // if less then one then assume they
+				// are using 0-1 so convert to 0-128
 				light.setSpotExponent(exp);
 			}
-			var fa=type.getElementsByTagName("falloff_angle");
-			if(fa.length>0) light.setSpotCosCutOff(Math.cos(parseFloat(fa[0].firstChild.nodeValue)/180*Math.PI));
+			var fa = type.getElementsByTagName("falloff_angle");
+			if (fa.length > 0)
+				light.setSpotCosCutOff(Math.cos(parseFloat(fa[0].firstChild.nodeValue) / 180
+						* Math.PI));
 			break;
 	}
 	return light;
 }
 
+// JHD
+/**
+* Creates a new group and parses it's children
+* @param {DOM Element} node the element to parse
+* @param {boolean} ref should this just get a reference for later addition
+* @private
+*/
+GLGE.Collada.prototype.addColladaCamera = function(object) {
+	object.matrix = null; // Clear any cache
+	object.parent = this;
+	this.children.push(object);
+	this.hasCamera = true;
+
+	return this;
+}
+// JHD - End
 
 /**
 * Creates a new group and parses it's children
@@ -1709,6 +1780,33 @@ GLGE.Collada.prototype.getNode=function(node,ref){
 			case "instance_controller":
 				newGroup.addObject(this.getInstanceController(child));
 				break;
+			// JHD
+			case "instance_camera":
+				if(!this.useCamera) break;
+				newGroup.addColladaCamera(this.getNode(this.xml.getElementById(child.getAttribute("url").substr(1))));
+				break;
+			case "optics":
+				if(!this.useCamera) break;
+				var opticChild = child.getElementsByTagName("technique_common");
+				if (opticChild && opticChild.length > 0) {
+					opticChild = opticChild[0].getElementsByTagName("perspective");
+					if (opticChild && opticChild.length > 0) {
+						var yFov = opticChild[0].getElementsByTagName("yfov");
+						if (yFov && yFov.length > 0) {
+							newGroup.yFov = parseFloat(yFov[0].textContent);
+						}
+						var zNear = opticChild[0].getElementsByTagName("znear");
+						if (zNear && zNear.length > 0) {
+							newGroup.zNear = parseFloat(zNear[0].textContent);
+						}
+						var zFar = opticChild[0].getElementsByTagName("zfar");
+						if (zFar && zFar.length > 0) {
+							newGroup.zFar = parseFloat(zFar[0].textContent);
+						}
+					}
+				}
+				break;
+				// JHD - End
 			case "matrix":
 				matrix=this.parseArray(child);
 				break;
@@ -1788,6 +1886,51 @@ GLGE.Collada.prototype.initVisualScene=function(){
 			GLGE.error("Asset "+this.rootId+" not found in document"+this.url);
 		}
 	}
+	
+	if(this.useCamera){
+		// JHD
+		var tempCamera;
+		var findChild = function(root) {
+			if (root.hasCamera) {
+				tempCamera = root;
+				return;
+			}
+			if (!root.children) {
+				return;
+			}
+			for ( var i = 0; i < root.children.length && !tempCamera; i++) {
+				findChild(root.children[i]);
+			}
+		};
+		findChild(transformRoot);
+		if (tempCamera) {
+			pp = transformRoot.parent.parent;
+			pp.camera.locX = tempCamera.locX;
+			pp.camera.locY = tempCamera.locY;
+			pp.camera.locZ = tempCamera.locZ;
+			if (tempCamera.children && tempCamera.children.length > 0) {
+				var child = tempCamera.children[0];
+				if (child.yFov) {
+					pp.camera.fovy = child.yFov;
+					pp.camera.pMatrix = null;
+				}
+				// TODO: Does this really get applied into WebGL states?
+				if (child.zNear) {
+					pp.camera.near = child.zNear;
+				}
+				if (child.zFar) {
+					pp.camera.far = child.zFar;
+				}
+			}
+			// Clear camera cache - The camera has, at this point, already been
+			// calculated!
+			pp.camera.matrix = null;
+			pp.camera.rotmatrix = tempCamera.rotmatrix;
+			pp.camera.lookAt = null;
+		}
+		// JHD - End
+	}
+	
 };
 
 
@@ -1797,12 +1940,16 @@ GLGE.Collada.prototype.initVisualScene=function(){
 var exceptions={
 	"default":{},
 	"COLLADA Mixamo exporter":{badAccessor:true},
+	"FBX COLLADA exporter":{badAccessor:true},
 	"Blender2.5":{flipangle:true,negjoints:true}
 }
 	
 GLGE.Collada.prototype.getExceptions=function(){
 	if(this.xml.getElementsByTagName("authoring_tool").length>0 && this.xml.getElementsByTagName("authoring_tool")[0].firstChild.nodeValue=="COLLADA Mixamo exporter"){
 		return exceptions["COLLADA Mixamo exporter"];
+	}
+	if(this.xml.getElementsByTagName("authoring_tool").length>0 && this.xml.getElementsByTagName("authoring_tool")[0].firstChild.nodeValue=="FBX COLLADA exporter"){
+		return exceptions["FBX COLLADA exporter"];
 	}
 	if(this.xml.getElementsByTagName("authoring_tool").length>0 && /Blender 2.5/.test(this.xml.getElementsByTagName("authoring_tool")[0].firstChild.nodeValue)){
 		return exceptions["Blender2.5"];
