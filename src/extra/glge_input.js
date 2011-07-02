@@ -82,7 +82,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 				}
 			}
 		};
-		image.src = imageURL;
+		GLGE.loadImage(image, imageURL);
 	}
 	GLGE.HeightMap.prototype.canvas = null;
 	GLGE.HeightMap.prototype.context = null;

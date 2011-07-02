@@ -762,7 +762,7 @@ GLGE.ParticleSystem.prototype.setImage=function(url){
 	texture.image.onload=function(e){
 		texture.state=1;
 	}
-	texture.image.src=url;
+	GLGE.loadImage(texture.image, url);
 }
 /**
 * Sets the attributes

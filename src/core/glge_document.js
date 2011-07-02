@@ -120,7 +120,7 @@ GLGE.Document.prototype.load=function(url){
 GLGE.Document.prototype.loadDocument=function(url,relativeto){
 	this.loadCount++;
 	url=this.getAbsolutePath(url,relativeto);
-	var req = new XMLHttpRequest();
+	var req = new GLGE.XMLHttpRequest();
 	if(req) {
 		req.docurl=url;
 		req.docObj=this;

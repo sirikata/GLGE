@@ -203,7 +203,7 @@ GLGE.Filter2d.prototype.getUniformType=function(name){
 }
 
 GLGE.Filter2d.prototype.addPassFile=function(url){
-	var req = new XMLHttpRequest();
+	var req = new GLGE.XMLHttpRequest();
     var filter=this;
 	if(req) {
 		req.open("GET", url, false);

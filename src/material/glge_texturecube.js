@@ -74,7 +74,7 @@ GLGE.TextureCube.prototype.setSrc=function(url,image,mask){
 	this[image].onload = function(){
 		texture.loadState+=mask;
 	}	
-	this[image].src=url;	
+	GLGE.loadImage(this[image], url);
 	if(this.glTexture && this.gl) {
 		this.gl.deleteTexture(this.glTexture);
 		this.glTexture=null;

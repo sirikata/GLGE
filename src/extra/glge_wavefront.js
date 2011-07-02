@@ -196,7 +196,7 @@ GLGE.Wavefront.prototype.loadFile=function(url,relativeTo,callback){
 	if(!relativeTo && this.relativeTo) relativeTo=this.relativeTo;
 	url=this.getAbsolutePath(url,relativeTo);
 	if(!this.relativeTo) this.relativeTo=url;
-	var req = new XMLHttpRequest();
+	var req = new GLGE.XMLHttpRequest();
 	var that=this;
 	if(req) {
 		req.overrideMimeType("text/plain")

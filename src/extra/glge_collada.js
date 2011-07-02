@@ -224,7 +224,7 @@ GLGE.Collada.prototype.setDocument=function(url,relativeTo,cb){
 	if(GLGE.ColladaDocuments[url]){
 		this.xml=GLGE.ColladaDocuments[url];
 	}else{
-		var req = new XMLHttpRequest();
+		var req = new GLGE.XMLHttpRequest();
 		if(req) {
 			req.overrideMimeType("text/xml")
 			var docurl=url;

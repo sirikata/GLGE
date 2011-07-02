@@ -295,6 +295,12 @@ GLGE.error=function(error){
     //do not use a modal dialog to indicate this users can override GLGE.error if they desire
 };
 
+GLGE.XMLHttpRequest=window.XMLHttpRequest;
+
+GLGE.loadImage=function(image, src) {
+    image.src = src;
+};
+
 /**
 * @namespace Holds the global asset store
 */

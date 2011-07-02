@@ -85,7 +85,7 @@ GLGE.Texture.prototype.setSrc=function(url){
 		texture.state=1;
     	texture.fireEvent("downloadComplete");
 	}	
-	this.image.src=url;	
+	GLGE.loadImage(this.image, url);
 	if(this.glTexture && this.gl){
 		this.gl.deleteTexture(this.glTexture);
 		this.glTexture=null;

@@ -113,7 +113,7 @@ GLGE.Message.messageLoader=function(url,callback,priority){
 GLGE.Message.loadMessages=function(){
 	//TODO: use priority
 	var nextDoc=GLGE.Message.toLoad.pop();
-	var req=new XMLHttpRequest();
+	var req=new GLGE.XMLHttpRequest();
 	req.onreadystatechange = function() {
 		if(this.readyState  == 4){
 			if(this.status  == 200 || this.status==0){
