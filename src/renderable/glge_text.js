@@ -204,7 +204,10 @@ GLGE.Text.prototype.GLGenerateShader=function(gl){
 	
 	vertexStr+="void main(void){\n";
 	vertexStr+="texcoord=uvcoord;\n";    
-	vertexStr+="pos = Matrix * vec4(position,1.0);\n";
+	vertexStr+="pos = Matrix * vec4(0,0,0,1.0);\n";
+	vertexStr+="float scalepos = length((Matrix * vec4(position,1.0)-pos).xyz);\n";
+    
+    vertexStr+="pos.xyz+=position*scalepos/sqrt(2.0);\n";
 	vertexStr+="gl_Position = PMatrix * pos;\n";
 	vertexStr+="}\n";
 	
@@ -373,7 +376,7 @@ GLGE.Text.prototype.createPlane=function(gl){
 	//create the vertex positions
 	if(!this.posBuffer) this.posBuffer = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.posBuffer);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([1,1,0,-1,1,0,-1,-1,0,1,-1,0]), gl.STATIC_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,1,0,1,1,0,1,-1,0,-1,-1,0]), gl.STATIC_DRAW);
 	this.posBuffer.itemSize = 3;
 	this.posBuffer.numItems = 4;
 	//create the vertex uv coords
@@ -385,7 +388,7 @@ GLGE.Text.prototype.createPlane=function(gl){
 	//create the faces
 	if(!this.GLfaces) this.GLfaces = gl.createBuffer();
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.GLfaces);
-	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0,1,2,2,3,0]), gl.STATIC_DRAW);
+	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([2,1,0,0,3,2]), gl.STATIC_DRAW);
 	this.GLfaces.itemSize = 1;
 	this.GLfaces.numItems = 6;
 }
