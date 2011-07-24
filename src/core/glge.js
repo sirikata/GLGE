@@ -298,6 +298,7 @@ GLGE.error=function(error){
 GLGE.XMLHttpRequest=window.XMLHttpRequest;
 
 GLGE.loadImage=function(image, src) {
+    image.crossOrigin = '';
     image.src = src;
 };
 
