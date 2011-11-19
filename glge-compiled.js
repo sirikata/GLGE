@@ -3767,7 +3767,7 @@ GLGE.Group.prototype.removeChild=function(object){
 	for(var i=0;i<this.children.length;i++){
 		if(this.children[i]==object){
     	    if(this.children[i].removeEventListener){
-                this.children[i].removeEventListener(this.downloadComplete);
+                this.children[i].removeEventListener("downloadComplete",this.downloadComplete);
     	    }
 			this.children.splice(i, 1);
 			if(this.scene && this.scene["remove"+object.className]){
@@ -4248,7 +4248,7 @@ GLGE.AnimationCurve.prototype.coord=function(x,y){
 GLGE.AnimationCurve.prototype.setChannel=function(channel){
 	this.channel=channel
 }
-GLGE.AnimationCurve.prototype.getValue=function(frame){
+GLGE.AnimationCurve.prototype.getValue=function(frame, prevValue, rotation){
 	if(this.keyFrames.length==0) return 0;
 	
 	if(this.caches[frame]) return this.caches[frame];
@@ -4256,11 +4256,8 @@ GLGE.AnimationCurve.prototype.getValue=function(frame){
 	var endKey;
 	var preStartKey;
 	var preEndKey;
-	if(frame<this.keyFrames[0].x) return this.keyFrames[0].y;
+	if(frame<this.keyFrames[0].x)  frame=0;
 	for(var i=0; i<this.keyFrames.length;i++){
-		if(this.keyFrames[i].x==frame){
-			return this.keyFrames[i].y;
-		}
 		if(this.keyFrames[i].x<=frame && (startKey==undefined || this.keyFrames[i].x>this.keyFrames[startKey].x)){
 			preStartKey=startKey;
 			startKey=i;
@@ -4274,9 +4271,17 @@ GLGE.AnimationCurve.prototype.getValue=function(frame){
 			preEndKey=i;
 		}
 	}
+	if (preEndKey==undefined) {
+		if (endKey==undefined)
+			endKey=startKey;
+		preEndKey=endKey;
+	}
 	if(startKey==undefined){
 		startKey=endKey;
 		endKey=preEndKey;
+	}
+	if (preStartKey==undefined) {
+		preStartKey=startKey;
 	}
 	if(endKey==undefined){
 		endKey=startKey;
@@ -4304,11 +4309,34 @@ GLGE.AnimationCurve.prototype.getValue=function(frame){
 		return this.atX(frame,C1,C2,C3,C4).y;
 	}
 	if(this.keyFrames[startKey] instanceof GLGE.LinearPoint && this.keyFrames[endKey] instanceof GLGE.LinearPoint){
-		var value=(frame-this.keyFrames[startKey].x)*(this.keyFrames[endKey].y-this.keyFrames[startKey].y)/(this.keyFrames[endKey].x-this.keyFrames[startKey].x)+this.keyFrames[startKey].y;
+		var endY=this.keyFrames[endKey].y;
+		var startY=this.keyFrames[startKey].y;
+		if (rotation) {
+			if (!prevValue) {
+				prevValue=this.keyFrames[1%this.keyFrames.length].y;
+			}
+			function getCloser(a,b,del) {
+				if (Math.abs((a+del)-b)<Math.abs(a-b)) {
+					return a+del;
+				}
+				if (Math.abs((a-del)-b)<Math.abs(a-b)) {
+					return a-del;
+				}
+				return a;
+			}
+			endY=getCloser(endY,prevValue,360);
+			endY=getCloser(endY,prevValue,180);
+			startY=getCloser(startY,prevValue,360);
+			startY=getCloser(startY,prevValue,180);
+		}
+		var delt=(this.keyFrames[endKey].x-this.keyFrames[startKey].x);
+		if (delt==0)
+			delt=1.0;
+		var value=(frame-this.keyFrames[startKey].x)*(endY-startY)/delt+startY;
 		return value;
 	}
 	if(this.keyFrames[startKey] instanceof GLGE.StepPoint){
-		return this.keyFrames[startKey].y
+		return this.keyFrames[startKey].y;
 	}
 	if(!this.keyFrames.preStartKey) this.keyFrames.preStartKey=this.keyFrames[0].y;
 	
@@ -6063,6 +6091,7 @@ GLGE.Material.prototype.getFragmentShader=function(lights,colors){
 		
 	shader=shader+"lightvalue = (lightvalue)*ref;\n";
 	shader=shader+"if(em>0.0){lightvalue=vec3(1.0,1.0,1.0);}\n";
+    //shader=shader+"vec3 tempvar=2.0*(vec3(normalmap.r, -normalmap.g, normalmap.b) - vec3(0.5, -0.5, 0.5));"
 	shader=shader+"gl_FragColor =vec4(specvalue.rgb+color.rgb*(em+1.0)*lightvalue.rgb,al)*fogfact+vec4(fogcolor,al)*(1.0-fogfact);\n";
 	//shader=shader+"gl_FragColor =vec4(vec3(color.rgb),1.0);\n";
 
@@ -6921,7 +6950,7 @@ GLGE.MultiMaterial.prototype.updateProgram=function(){
 */
 GLGE.MultiMaterial.prototype.removeObjectLod=function(lod){
 	var idx=this.lods.indexOf(lod);
-    lods[idx].removeEventListener(this.downloadComplete);
+    lods[idx].removeEventListener("downloadComplete",this.downloadComplete);
 	if(idx) this.lods.splice(idx,1);
 	return this;
 }
@@ -8580,7 +8609,7 @@ GLGE.Object.prototype.GLGenerateShader=function(gl){
 	
 	if(tangent) vertexStr.push("t = normalize(tang);");
 		else  vertexStr.push("t = vec3(0.0,0.0,0.0);");
-	vertexStr.push("n = norm.rgb;");
+	vertexStr.push("n = normalize(norm.rgb);");
 
 	
 	for(var i=0; i<lights.length;i++){			
@@ -9023,8 +9052,12 @@ GLGE.Object.prototype.GLRender=function(gl,renderType,pickindex,multiMaterial,di
 				case GLGE.Mesh.WINDING_ORDER_UNKNOWN:
 					gl.disable(gl.CULL_FACE);
 					break;
+				case GLGE.Mesh.WINDING_ORDER_CLOCKWISE:
+					gl.enable(gl.CULL_FACE);    
+					break;
 				case GLGE.Mesh.WINDING_ORDER_COUNTER:
 					gl.cullFace(gl.FRONT);
+					gl.enable(gl.CULL_FACE);    
 				default:
 					break;
 			}
@@ -11651,12 +11684,12 @@ GLGE.ParticleSystem.prototype.accelerationFunction=function(i){
 	return [[
 		(this.startMaxAcceleration.x-this.startMinAcceleration.x) * Math.random()+this.startMinAcceleration.x,
 		(this.startMaxAcceleration.y-this.startMinAcceleration.y) * Math.random()+this.startMinAcceleration.y,
-		(this.startMaxAcceleration.z-this.startMinAcceleration.z) * Math.random()+this.startMinAcceleration.z,
+		(this.startMaxAcceleration.z-this.startMinAcceleration.z) * Math.random()+this.startMinAcceleration.z
 		],
 		[
 		(this.endMaxAcceleration.x-this.endMinAcceleration.x) * Math.random()+this.endMinAcceleration.x,
 		(this.endMaxAcceleration.y-this.endMinAcceleration.y) * Math.random()+this.endMinAcceleration.y,
-		(this.endMaxAcceleration.z-this.endMinAcceleration.z) * Math.random()+this.endMinAcceleration.z,
+		(this.endMaxAcceleration.z-this.endMinAcceleration.z) * Math.random()+this.endMinAcceleration.z
 		]];
 }
 /**
@@ -12855,6 +12888,8 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 		if(!outputData.NORMAL){
             console.log("Autogenerating normals, do not know facings");
 			outputData.NORMAL=[];
+            if (!outputData.POSITION)
+                outputData.POSITION=outputData.VERTEX;
 			for(n=0;n<outputData.POSITION.length;n=n+9){
 				var vec1=GLGE.subVec3([outputData.POSITION[n],outputData.POSITION[n+1],outputData.POSITION[n+2]],[outputData.POSITION[n+3],outputData.POSITION[n+4],outputData.POSITION[n+5]]);
 				var vec2=GLGE.subVec3([outputData.POSITION[n+6],outputData.POSITION[n+7],outputData.POSITION[n+8]],[outputData.POSITION[n],outputData.POSITION[n+1],outputData.POSITION[n+2]]);
@@ -12873,6 +12908,8 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
          	for(n=0;n<len;n++) faces.push(n);   
 		}else {
             windingOrder=GLGE.Mesh.WINDING_ORDER_CLOCKWISE;
+            if (!outputData.POSITION)
+                outputData.POSITION=outputData.VERTEX;
 			for(n=0;n<outputData.POSITION.length;n=n+9){
 				var vec1=GLGE.subVec3([outputData.POSITION[n],outputData.POSITION[n+1],outputData.POSITION[n+2]],[outputData.POSITION[n+3],outputData.POSITION[n+4],outputData.POSITION[n+5]]);
 				var vec2=GLGE.subVec3([outputData.POSITION[n+6],outputData.POSITION[n+7],outputData.POSITION[n+8]],[outputData.POSITION[n],outputData.POSITION[n+1],outputData.POSITION[n+2]]);
@@ -12941,12 +12978,15 @@ GLGE.Collada.prototype.getMeshes=function(id,skeletonData){
 				skeletonData.count=8;
 			}
             for (var index=0;index<nummesh;++index) {			
-			    trimesh[index].setJoints(skeletonData.joints);
-			    trimesh[index].setInvBindMatrix(skeletonData.inverseBindMatrix);
-                var maxval=min(MAXVERTS*(index+1)*skeletonData.count,vertexJoints.length);
-                var minval=MAXVERTS*index*skeletonData.count;
-			    trimesh[index].setVertexJoints(vertexJoints.slice(minval,maxval),skeletonData.count);
-			    trimesh[index].setVertexWeights(vertexWeights.slice(minval,maxval),skeletonData.count);
+                if (this.xml.getElementsByTagName("animation").length!=0) {
+                    
+			        trimesh[index].setJoints(skeletonData.joints);
+			        trimesh[index].setInvBindMatrix(skeletonData.inverseBindMatrix);
+                    var maxval=min(MAXVERTS*(index+1)*skeletonData.count,vertexJoints.length);
+                    var minval=MAXVERTS*index*skeletonData.count;
+			        trimesh[index].setVertexJoints(vertexJoints.slice(minval,maxval),skeletonData.count);
+			        trimesh[index].setVertexWeights(vertexWeights.slice(minval,maxval),skeletonData.count);
+                }
             }
 		}
         for (var index=0;index<nummesh;++index) {		
@@ -13631,6 +13671,8 @@ GLGE.Collada.prototype.getAnimationVector=function(channels){
 	
 	}
 	var animVector=new GLGE.AnimationVector();
+	if (maxFrame==0)
+		maxFrame=1.0;
 	animVector.setFrames(maxFrame);
 	var quatxcurve=new GLGE.AnimationCurve(); quatxcurve.setChannel("QuatX");
 	var quatycurve=new GLGE.AnimationCurve(); quatycurve.setChannel("QuatY");
@@ -13653,6 +13695,7 @@ GLGE.Collada.prototype.getAnimationVector=function(channels){
 	animVector.addAnimationCurve(scaleycurve);
 	animVector.addAnimationCurve(scalezcurve);
 	var lastQuat=null;
+	var transformsPrevValue=[];
 	for(var frame=0; frame<maxFrame;frame++){
 		var matrix=GLGE.identMatrix();
 		for(var i=0;i<transforms.length;i++){
@@ -13684,7 +13727,7 @@ GLGE.Collada.prototype.getAnimationVector=function(channels){
 						(transforms[i].animations[0] ? transforms[i].animations[0].getValue(frame) : transforms[i].data[0]),
 						(transforms[i].animations[1] ? transforms[i].animations[1].getValue(frame) : transforms[i].data[1]),
 						(transforms[i].animations[2] ? transforms[i].animations[2].getValue(frame) : transforms[i].data[2]),
-						(transforms[i].animations[3] ? transforms[i].animations[3].getValue(frame) : transforms[i].data[3])
+						(transforms[i].animations[3] ? (transformsPrevValue[i]=transforms[i].animations[3].getValue(frame,transformsPrevValue[i],true)) : transforms[i].data[3])
 					];
 					matrix=GLGE.mulMat4(matrix,GLGE.angleAxis(rotate_array[3]*0.017453278,[ rotate_array[0], rotate_array[1], rotate_array[2]]));
 					break;
