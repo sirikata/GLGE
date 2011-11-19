@@ -158,7 +158,7 @@ GLGE.Collada.prototype.isSketchupFile = function() {
                 return false;
             for (var k=0;k<authoring.length;++k) {    
                 var tool=authoring[k].firstChild.nodeValue;
-                if (tool.indexOf("Google")==0 && tool.indexOf("SketchUp 8.")==-1) {
+                if (tool.indexOf("Google")==0) {
                     return true;
                 }
             }
