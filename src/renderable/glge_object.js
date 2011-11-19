@@ -1057,8 +1057,12 @@ GLGE.Object.prototype.GLRender=function(gl,renderType,pickindex,multiMaterial,di
 				case GLGE.Mesh.WINDING_ORDER_UNKNOWN:
 					gl.disable(gl.CULL_FACE);
 					break;
+				case GLGE.Mesh.WINDING_ORDER_CLOCKWISE:
+					gl.enable(gl.CULL_FACE);    
+					break;
 				case GLGE.Mesh.WINDING_ORDER_COUNTER:
 					gl.cullFace(gl.FRONT);
+					gl.enable(gl.CULL_FACE);    
 				default:
 					break;
 			}
